@@ -16,6 +16,7 @@ export interface TrunkRow {
   username: string | null;
   secret_ciphertext: string | null;
   registration_username: string | null;
+  registration_contact_user: string | null;
   from_user: string | null;
   from_domain: string | null;
   inbound_match: string | null;
@@ -131,6 +132,9 @@ export function renderTrunkPjsipConfig(rows: TrunkRow[]): string {
         "type=registration",
         `transport=nbvoice-transport-${row.transport}`,
         `outbound_auth=${section}-auth`,
+        ...(row.registration_contact_user
+          ? [`contact_user=${row.registration_contact_user}`]
+          : []),
         `server_uri=${providerUri}`,
         `client_uri=sip:${row.registration_username ?? row.username}@${row.provider_host}`,
         "retry_interval=60",

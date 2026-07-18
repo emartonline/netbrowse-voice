@@ -162,6 +162,7 @@ validate_trunks() {
     [[ "${line}" == "expiration=300" || "${line}" == "line=yes" ]] && continue
     [[ "${line}" =~ ^(aors|outbound_auth|endpoint)=nbvt-[0-9a-f]{32}(-(aor|auth))?$ ]] && continue
     [[ "${line}" =~ ^from_user=[A-Za-z0-9_.+-]{1,128}$ ]] && continue
+    [[ "${line}" =~ ^contact_user=[A-Za-z0-9_.+-]{1,128}$ ]] && continue
     [[ "${line}" =~ ^from_domain=[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]] && continue
     [[ "${line}" =~ ^username=[A-Za-z0-9_.+-]{1,128}$ ]] && continue
     [[ "${line}" =~ ^(contact|server_uri)=sip:[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?:[0-9]{1,5}$ ]] && continue

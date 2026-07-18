@@ -14,7 +14,7 @@ authentication, module management and the event foundation. AI reception,
 campaign dialling, billing and contact-centre functions are
 installed as independent modules.
 
-The 0.32.2 hackathon release provides:
+The 0.32.3 hackathon release provides:
 
 - a first-run administrator setup flow;
 - a responsive operations dashboard;
@@ -27,6 +27,8 @@ The 0.32.2 hackathon release provides:
 - ring timeout, DND, call waiting, pickup groups and internal call forwarding;
 - provider-neutral SIP trunks using registration, digest credentials without
   registration, or trusted source IP authentication;
+- optional registration Contact-header usernames for provider interoperability,
+  including Callcentric;
 - UDP/TCP provider transport, optional SIP From identity, multiple trusted
   inbound networks and encrypted provider secrets;
 - per-trunk E.164 plus removal and carrier dial-prefix preparation for the
