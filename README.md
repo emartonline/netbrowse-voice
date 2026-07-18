@@ -220,12 +220,18 @@ those must be added before treating it as a production payments deployment.
 
 ## Development installation
 
-Copy the release archive to a clean Ubuntu VM, extract it, and run:
+## Install on Ubuntu 26.04
+
+Download the two files from the **Assets** section below, then run:
 
 ```bash
 cd ~
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.3/netbrowse-voice-0.32.3.tar.gz
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.3/netbrowse-voice-0.32.3.tar.gz.sha256
+sha256sum -c netbrowse-voice-0.32.3.tar.gz.sha256
+tar -xzf netbrowse-voice-0.32.3.tar.gz
+cd ~/netbrowse-voice-0.32.3
 sudo bash installer/install.sh
-```
 
 The installer is intentionally idempotent. Running it again updates the source,
 rebuilds the applications, reruns safe migrations and restarts the services.
