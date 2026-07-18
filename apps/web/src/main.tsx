@@ -117,6 +117,7 @@ type SipTrunk = {
   username: string | null;
   passwordConfigured: boolean;
   registrationUsername: string | null;
+  registrationContactUser: string | null;
   fromUser: string | null;
   fromDomain: string | null;
   inboundMatch: string | null;
@@ -1987,6 +1988,9 @@ function TrunkModal({
   const [registrationUsername, setRegistrationUsername] = useState(
     trunk?.registrationUsername ?? "",
   );
+  const [registrationContactUser, setRegistrationContactUser] = useState(
+    trunk?.registrationContactUser ?? "",
+  );
   const [fromUser, setFromUser] = useState(trunk?.fromUser ?? "");
   const [fromDomain, setFromDomain] = useState(trunk?.fromDomain ?? "");
   const [inboundMatch, setInboundMatch] = useState(trunk?.inboundMatch ?? "");
@@ -2013,6 +2017,8 @@ function TrunkModal({
           password: password || undefined,
           registrationUsername:
             authMode === "registration" ? registrationUsername || null : null,
+          registrationContactUser:
+            authMode === "registration" ? registrationContactUser || null : null,
           fromUser: fromUser || null,
           fromDomain: fromDomain || null,
           inboundMatch: inboundMatch || null,
@@ -2146,19 +2152,34 @@ function TrunkModal({
           </>
         )}
         {authMode === "registration" && (
-          <label>
-            <span>Registration/AOR username</span>
-            <input
-              value={registrationUsername}
-              onChange={(event) => setRegistrationUsername(event.target.value)}
-              maxLength={128}
-              placeholder="Defaults to provider username"
-            />
-            <small>
-              Set this only when the REGISTER address-of-record differs from the
-              authentication username.
-            </small>
-          </label>
+          <>
+            <label>
+              <span>Registration/AOR username</span>
+              <input
+                value={registrationUsername}
+                onChange={(event) => setRegistrationUsername(event.target.value)}
+                maxLength={128}
+                placeholder="Defaults to provider username"
+              />
+              <small>
+                Set this only when the REGISTER address-of-record differs from the
+                authentication username.
+              </small>
+            </label>
+            <label>
+              <span>Registration Contact user</span>
+              <input
+                value={registrationContactUser}
+                onChange={(event) => setRegistrationContactUser(event.target.value)}
+                maxLength={128}
+                placeholder="Optional provider-specific Contact username"
+              />
+              <small>
+                Use this when a provider requires a fixed SIP Contact username.
+                Callcentric requires the full account number here.
+              </small>
+            </label>
+          </>
         )}
         {authMode === "credentials" && (
           <div className="notice">
@@ -11700,7 +11721,7 @@ function AgentWorkspace({
             }
           />
           {registrationLabel}
-          <small>Hackathon build · 0.32.2</small>
+          <small>Hackathon build · 0.32.3</small>
         </footer>
       </aside>
       <main className="agent-workspace-main">
@@ -13387,7 +13408,7 @@ function CustomerPortal({
         </nav>
         <footer>
           <i className="online" />
-          Account active<small>{data.branding?.supportEmail || `${data.branding?.brandName ?? "Netbrowse Voice"} · 0.32.2`}</small>
+          Account active<small>{data.branding?.supportEmail || `${data.branding?.brandName ?? "Netbrowse Voice"} · 0.32.3`}</small>
         </footer>
       </aside>
       <main className="customer-portal-main">
@@ -13877,7 +13898,7 @@ function Dashboard({
           <div className="core-status">
             <span /> Core online
           </div>
-          <small>Hackathon build · 0.32.2</small>
+          <small>Hackathon build · 0.32.3</small>
         </div>
       </aside>
 

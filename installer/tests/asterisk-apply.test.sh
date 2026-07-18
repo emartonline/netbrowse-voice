@@ -205,6 +205,7 @@ write_valid_trunk() {
     'type=registration' \
     'transport=nbvoice-transport-tcp' \
     'outbound_auth=nbvt-75fc4720908b462a956728190f51470a-auth' \
+    'contact_user=17770001111' \
     'server_uri=sip:sip.example.net:5060' \
     'client_uri=sip:27870001111@sip.example.net' \
     'retry_interval=60' \

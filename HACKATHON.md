@@ -98,7 +98,7 @@ flowchart TD
 
 ## Verification completed
 
-The 0.32.2 build has passed TypeScript checks, production web/API builds, 128
+The 0.32.3 build has passed TypeScript checks, production web/API builds, 129
 API tests and all installer helper tests. The installer checks Asterisk voicemail,
 recording, AudioSocket, queues, music on hold and PostgreSQL CDR support before
 it reports success.

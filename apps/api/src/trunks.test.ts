@@ -22,6 +22,7 @@ function trunk(overrides: Partial<TrunkRow> = {}): TrunkRow {
     username: "27870001111",
     secret_ciphertext: encryptSecret("provider-secret-123"),
     registration_username: "27870001111",
+    registration_contact_user: null,
     from_user: null,
     from_domain: null,
     inbound_match: "192.0.2.0/24",
@@ -35,7 +36,7 @@ function trunk(overrides: Partial<TrunkRow> = {}): TrunkRow {
 }
 
 test("registration trunk renderer creates endpoint, auth, AoR, registration and identify sections", () => {
-  const row = trunk();
+  const row = trunk({ registration_contact_user: "17770001111" });
   const section = trunkSectionName(row.id);
   const output = renderTrunkPjsipConfig([row]);
   assert.match(output, new RegExp(`\\[${section}\\]\\ntype=endpoint`));
@@ -44,8 +45,14 @@ test("registration trunk renderer creates endpoint, auth, AoR, registration and 
   assert.match(output, /password=provider-secret-123/);
   assert.match(output, /server_uri=sip:sip\.example\.net:5060/);
   assert.match(output, /client_uri=sip:27870001111@sip\.example\.net/);
+  assert.match(output, /contact_user=17770001111/);
   assert.match(output, /line=yes/);
   assert.match(output, /match=192\.0\.2\.0\/24/);
+});
+
+test("registration Contact user is omitted unless configured", () => {
+  const output = renderTrunkPjsipConfig([trunk()]);
+  assert.doesNotMatch(output, /contact_user=/);
 });
 
 test("IP-authenticated trunk renderer omits registration and credentials", () => {

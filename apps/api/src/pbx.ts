@@ -335,7 +335,7 @@ export async function applyPbxConfiguration(): Promise<void> {
     ),
     pool.query<TrunkRow>(
       `SELECT id, name, auth_mode, provider_host, provider_port, transport,
-              username, secret_ciphertext, registration_username, from_user,
+              username, secret_ciphertext, registration_username, registration_contact_user, from_user,
               from_domain, inbound_match, dial_prefix, strip_plus,
               enabled, created_at, updated_at
          FROM sip_trunks

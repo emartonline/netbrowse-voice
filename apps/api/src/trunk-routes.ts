@@ -18,6 +18,7 @@ interface TrunkBody {
   username?: string;
   password?: string;
   registrationUsername?: string | null;
+  registrationContactUser?: string | null;
   fromUser?: string | null;
   fromDomain?: string | null;
   inboundMatch?: string | null;
@@ -63,7 +64,7 @@ interface PublicDidRouteRow extends DidRouteRow {
 }
 
 const trunkColumns = `id, name, auth_mode, provider_host, provider_port,
-  transport, username, secret_ciphertext, registration_username, from_user,
+  transport, username, secret_ciphertext, registration_username, registration_contact_user, from_user,
   from_domain, inbound_match, dial_prefix, strip_plus,
   enabled, created_at, updated_at`;
 const didColumns = `id, did_number, trunk_id, destination_type, extension_id,
@@ -133,6 +134,7 @@ function publicTrunk(
     username: row.username,
     passwordConfigured: Boolean(row.secret_ciphertext),
     registrationUsername: row.registration_username,
+    registrationContactUser: row.registration_contact_user,
     fromUser: row.from_user,
     fromDomain: row.from_domain,
     inboundMatch: row.inbound_match,
@@ -195,7 +197,7 @@ async function didById(id: string): Promise<DidRouteRow | undefined> {
 async function restoreTrunk(row: TrunkRow): Promise<void> {
   await pool.query(
     `INSERT INTO sip_trunks (${trunkColumns})
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
     [
       row.id,
       row.name,
@@ -206,6 +208,7 @@ async function restoreTrunk(row: TrunkRow): Promise<void> {
       row.username,
       row.secret_ciphertext,
       row.registration_username,
+      row.registration_contact_user,
       row.from_user,
       row.from_domain,
       row.inbound_match,
@@ -257,6 +260,9 @@ function normalizedTrunkBody(body: TrunkBody, existing?: TrunkRow) {
   const registrationUsername = body.registrationUsername === undefined
     ? existing?.registration_username ?? null
     : body.registrationUsername?.trim() || null;
+  const registrationContactUser = body.registrationContactUser === undefined
+    ? existing?.registration_contact_user ?? null
+    : body.registrationContactUser?.trim() || null;
   const fromUser = body.fromUser === undefined
     ? existing?.from_user ?? null
     : body.fromUser?.trim() || null;
@@ -296,6 +302,9 @@ function normalizedTrunkBody(body: TrunkBody, existing?: TrunkRow) {
   if (registrationUsername && !validUsername(registrationUsername)) {
     throw new Error("Enter a valid registration username");
   }
+  if (registrationContactUser && !validUsername(registrationContactUser)) {
+    throw new Error("Enter a valid registration Contact user");
+  }
   if (fromUser && !validUsername(fromUser)) {
     throw new Error("Enter a valid SIP From user");
   }
@@ -319,6 +328,7 @@ function normalizedTrunkBody(body: TrunkBody, existing?: TrunkRow) {
       ? (password ? encryptSecret(password) : existing?.secret_ciphertext ?? null)
       : null,
     registrationUsername: authMode === "registration" ? registrationUsername : null,
+    registrationContactUser: authMode === "registration" ? registrationContactUser : null,
     fromUser,
     fromDomain,
     inboundMatch,
@@ -423,9 +433,9 @@ export function registerTrunkRoutes(app: FastifyInstance): void {
         const inserted = await pool.query<TrunkRow>(
           `INSERT INTO sip_trunks
              (name, auth_mode, provider_host, provider_port, transport,
-              username, secret_ciphertext, registration_username, from_user,
+              username, secret_ciphertext, registration_username, registration_contact_user, from_user,
               from_domain, inbound_match, dial_prefix, strip_plus, enabled)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
            RETURNING ${trunkColumns}`,
           [
             values.name,
@@ -436,6 +446,7 @@ export function registerTrunkRoutes(app: FastifyInstance): void {
             values.username,
             values.secretCiphertext,
             values.registrationUsername,
+            values.registrationContactUser,
             values.fromUser,
             values.fromDomain,
             values.inboundMatch,
@@ -490,10 +501,11 @@ export function registerTrunkRoutes(app: FastifyInstance): void {
                 SET name = $1, auth_mode = $2, provider_host = $3,
                     provider_port = $4, transport = $5, username = $6,
                     secret_ciphertext = $7, registration_username = $8,
-                    from_user = $9, from_domain = $10, inbound_match = $11,
-                    dial_prefix = $12, strip_plus = $13, enabled = $14,
+                    registration_contact_user = $9, from_user = $10,
+                    from_domain = $11, inbound_match = $12,
+                    dial_prefix = $13, strip_plus = $14, enabled = $15,
                     updated_at = now()
-              WHERE id = $15
+              WHERE id = $16
               RETURNING ${trunkColumns}`,
             [
               values.name,
@@ -504,6 +516,7 @@ export function registerTrunkRoutes(app: FastifyInstance): void {
               values.username,
               values.secretCiphertext,
               values.registrationUsername,
+              values.registrationContactUser,
               values.fromUser,
               values.fromDomain,
               values.inboundMatch,
@@ -523,10 +536,11 @@ export function registerTrunkRoutes(app: FastifyInstance): void {
                   SET name = $1, auth_mode = $2, provider_host = $3,
                       provider_port = $4, transport = $5, username = $6,
                       secret_ciphertext = $7, registration_username = $8,
-                      from_user = $9, from_domain = $10, inbound_match = $11,
-                      dial_prefix = $12, strip_plus = $13, enabled = $14,
-                      updated_at = $15
-                WHERE id = $16`,
+                      registration_contact_user = $9, from_user = $10,
+                      from_domain = $11, inbound_match = $12,
+                      dial_prefix = $13, strip_plus = $14, enabled = $15,
+                      updated_at = $16
+                WHERE id = $17`,
               [
                 existing.name,
                 existing.auth_mode,
@@ -536,6 +550,7 @@ export function registerTrunkRoutes(app: FastifyInstance): void {
                 existing.username,
                 existing.secret_ciphertext,
                 existing.registration_username,
+                existing.registration_contact_user,
                 existing.from_user,
                 existing.from_domain,
                 existing.inbound_match,

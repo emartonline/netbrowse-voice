@@ -10,7 +10,7 @@ CONFIG_ROOT="/etc/netbrowse-voice"
 ENV_FILE="${CONFIG_ROOT}/netbrowse-voice.env"
 STATE_ROOT="/var/lib/netbrowse-voice"
 CACHE_ROOT="/var/cache/netbrowse-voice"
-VERSION="0.32.2"
+VERSION="0.32.3"
 
 apply_application_permissions() {
   chown -R root:nbvoice /opt/netbrowse-voice
@@ -373,6 +373,14 @@ PGPASSWORD="${DB_PASSWORD}" psql \
   "postgresql://nbvoice:${DB_PASSWORD}@127.0.0.1:5432/netbrowse_voice" \
   -v ON_ERROR_STOP=1 \
   -f "${APP_ROOT}/database/migrations/037_paypal_gui_settings.sql"
+PGPASSWORD="${DB_PASSWORD}" psql \
+  "postgresql://nbvoice:${DB_PASSWORD}@127.0.0.1:5432/netbrowse_voice" \
+  -v ON_ERROR_STOP=1 \
+  -f "${APP_ROOT}/database/migrations/038_ai_queue_handoff_and_turns.sql"
+PGPASSWORD="${DB_PASSWORD}" psql \
+  "postgresql://nbvoice:${DB_PASSWORD}@127.0.0.1:5432/netbrowse_voice" \
+  -v ON_ERROR_STOP=1 \
+  -f "${APP_ROOT}/database/migrations/039_trunk_registration_contact_user.sql"
 
 log "Preparing the controlled campaign call outbox"
 install -d -m 0770 -o nbvoice -g nbvoice "${STATE_ROOT}/campaign-outbox"
