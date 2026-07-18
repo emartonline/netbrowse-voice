@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+if [[ "${EUID}" -ne 0 ]]; then
+  printf 'Netbrowse Voice active calls: root privileges are required\n' >&2
+  exit 1
+fi
+if (( $# != 0 )); then
+  printf 'Netbrowse Voice active calls: arguments are not accepted\n' >&2
+  exit 1
+fi
+
+exec /usr/sbin/asterisk -rx "core show channels concise"

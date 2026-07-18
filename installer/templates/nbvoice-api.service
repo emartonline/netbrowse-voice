@@ -1,0 +1,25 @@
+[Unit]
+Description=Netbrowse Voice Core API
+After=network-online.target postgresql.service redis-server.service asterisk.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nbvoice
+Group=nbvoice
+SupplementaryGroups=asterisk
+WorkingDirectory=/opt/netbrowse-voice/app
+EnvironmentFile=/etc/netbrowse-voice/netbrowse-voice.env
+ExecStart=/usr/bin/node /opt/netbrowse-voice/app/apps/api/dist/index.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/netbrowse-voice @NBVOICE_SOUND_DIR@ /var/log/netbrowse-voice /etc/asterisk
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

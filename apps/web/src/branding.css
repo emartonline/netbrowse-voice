@@ -1,0 +1,72 @@
+.tenant-brand { min-width: 0; }
+.tenant-brand > div:last-child { min-width: 0; }
+.tenant-brand strong { max-width: 165px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: .04em; }
+.tenant-brand small { letter-spacing: .16em; }
+.brand-logo { width: 43px; height: 43px; flex: 0 0 43px; display: grid; place-items: center; overflow: hidden; border: 1px solid rgba(255,255,255,.16); border-radius: 11px; background: #fff; }
+.brand-logo img { display: block; width: 100%; height: 100%; padding: 3px; object-fit: contain; }
+.brand-mark b { color: #fff; font: 800 17px "Segoe UI",system-ui,sans-serif; }
+.branded-auth-page .auth-visual { background: radial-gradient(circle at 12% 76%, color-mix(in srgb, var(--brand-accent) 22%, transparent), transparent 27%), linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 88%, #000), var(--brand-primary)); }
+.branded-auth-page .visual-copy h1 { max-width: 720px; font-size: clamp(44px,5vw,75px); }
+.branded-auth-page .primary-button { background: var(--brand-accent); }
+.branded-support { margin-top: 17px; padding: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px 11px; border: 1px solid #dfe6ec; border-radius: 8px; background: #fff; font-size: 8px; }
+.branded-support span { width: 100%; color: #8293a2; font-weight: 700; text-align: center; }
+.branded-support a { color: var(--brand-primary); font-weight: 700; text-decoration: none; }
+.branded-support a:hover { color: var(--brand-accent); }
+.customer-portal-shell { --brand-primary: #071725; --brand-accent: var(--orange); }
+.customer-portal-shell .customer-portal-rail { background: var(--brand-primary); }
+.customer-portal-shell .customer-portal-user > div { background: var(--brand-primary); }
+.customer-portal-shell .customer-portal-account small,
+.customer-portal-shell .customer-portal-rail nav button.active i,
+.customer-portal-shell .portal-boundary-note strong { color: var(--brand-accent); }
+.reseller-branding-panel { margin: 0 0 15px; scroll-margin-top: 18px; }
+.branding-workspace { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(300px,.85fr); gap: 22px; align-items: start; }
+.branding-form { min-width: 0; }
+.branding-form .form-section { margin: 3px 0 16px; }
+.branding-form .form-section:not(:first-child) { margin-top: 26px; padding-top: 22px; border-top: 1px solid #e7edf2; }
+.branding-form .form-section span { color: var(--orange); font-size: 8px; font-weight: 800; letter-spacing: .13em; }
+.branding-form .form-section p { margin: 5px 0 0; color: #7d90a1; font-size: 8px; line-height: 1.55; }
+.branding-form > label,
+.branding-form .form-grid > label { display: block; margin-bottom: 15px; }
+.branding-form label > span { display: block; margin-bottom: 7px; color: #263d51; font-size: 9px; font-weight: 700; }
+.branding-form label > small { display: block; margin-top: 6px; color: #8a9aa8; font-size: 7px; line-height: 1.5; }
+.branding-form input:not([type="checkbox"]):not([type="color"]),
+.branding-form select { width: 100%; padding: 11px 12px; border: 1px solid #d6dfe7; border-radius: 8px; background: #fff; color: #172a3e; outline: none; }
+.branding-form input:focus { border-color: var(--brand-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-accent) 12%, transparent); }
+.branding-form .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.branding-slug-input { display: flex; align-items: stretch; overflow: hidden; border: 1px solid #d6dfe7; border-radius: 8px; background: #f4f7f9; }
+.branding-slug-input > span { padding: 11px 0 11px 12px; color: #7d90a1; font-size: 8px; white-space: nowrap; }
+.branding-slug-input input { min-width: 100px; padding-left: 2px !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+.branding-colours label { padding: 11px; border: 1px solid #e1e7ec; border-radius: 9px; background: #f8fafc; }
+.branding-colours input[type="color"] { width: 100%; height: 42px; padding: 3px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; }
+.branding-remove-logo { margin: -5px 0 10px; padding: 7px 9px; border: 1px solid #edcfc9; border-radius: 6px; background: #fff8f6; color: #ad5547; font-size: 8px; font-weight: 700; }
+.branding-publish { margin-top: 18px; padding: 13px; border: 1px solid #dce6ed; border-radius: 9px; background: #f7fafc; }
+.branding-publish > span { margin: 0 !important; }
+.branding-publish strong,.branding-publish small { display: block; }
+.branding-publish small { margin-top: 4px; color: #8495a4; font-size: 7px; }
+.branding-actions { margin-top: 18px; display: flex; justify-content: flex-end; gap: 9px; }
+.branding-actions .primary-button { width: auto; }
+.branding-preview { position: sticky; top: 20px; overflow: hidden; padding: 18px; border-radius: 12px; background: var(--brand-primary); }
+.branding-preview > span { color: color-mix(in srgb, var(--brand-accent) 82%, #fff); font-size: 7px; font-weight: 800; letter-spacing: .13em; }
+.branding-preview-card { margin-top: 14px; padding: 19px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(255,255,255,.055); }
+.branding-preview-card .brand { padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.branding-preview-card > div:nth-child(2) { padding: 25px 0 20px; }
+.branding-preview-card > div:nth-child(2) small { color: var(--brand-accent); font-size: 7px; font-weight: 800; letter-spacing: .12em; }
+.branding-preview-card h4 { margin: 8px 0; color: #fff; font-size: 20px; line-height: 1.1; }
+.branding-preview-card p { margin: 0; color: #a7b8c6; font-size: 8px; line-height: 1.55; }
+.branding-preview-card > button { width: 100%; padding: 11px; border: 0; border-radius: 7px; background: var(--brand-accent); color: #fff; font-size: 9px; font-weight: 800; }
+.branding-preview dl { margin: 15px 0 0; }
+.branding-preview dl div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.08); font-size: 7px; }
+.branding-preview dt { color: #7890a3; }
+.branding-preview dd { margin: 0; color: #d8e3eb; font-weight: 700; }
+@media (max-width: 1050px) {
+  .branding-workspace { grid-template-columns: 1fr; }
+  .branding-preview { position: static; }
+}
+@media (max-width: 600px) {
+  .branding-form .form-grid { grid-template-columns: 1fr; gap: 0; }
+  .branding-slug-input { display: block; }
+  .branding-slug-input > span { display: block; padding-bottom: 3px; white-space: normal; }
+  .branding-slug-input input { padding-left: 12px !important; }
+  .branding-actions { flex-direction: column; }
+  .branding-actions button { width: 100% !important; }
+}

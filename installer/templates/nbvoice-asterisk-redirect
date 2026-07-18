@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+REQUEST_ROOT="/var/lib/netbrowse-voice/redirect-requests"
+ASTERISK_COMMAND="/usr/sbin/asterisk"
+
+fail() {
+  printf 'Netbrowse Voice Asterisk redirect: %s\n' "$*" >&2
+  exit 1
+}
+
+expected_request_owner() {
+  printf 'nbvoice:nbvoice'
+}
+
+valid_channel() {
+  [[ "$1" =~ ^[A-Za-z0-9_@./:+-]{1,160}$ ]]
+}
+
+valid_extension() {
+  [[ "$1" =~ ^[0-9]{2,8}$ ]]
+}
+
+run_redirect() {
+  local channel="$1"
+  local extension="$2"
+  "${ASTERISK_COMMAND}" -rx "channel redirect ${channel} nbvoice-internal,${extension},1"
+}
+
+process_request() {
+  local request="$1"
+  local channel extension extra
+  [[ -f "${request}" && ! -L "${request}" ]] || fail "unsafe redirect request"
+  [[ "$(stat -c '%U:%G' "${request}")" == "$(expected_request_owner)" ]] || \
+    fail "redirect request has an unexpected owner"
+  [[ "$(stat -c '%a' "${request}")" == "600" ]] || fail "redirect request permissions are unsafe"
+  (( $(stat -c '%s' "${request}") <= 512 )) || fail "redirect request is too large"
+  IFS='|' read -r channel extension extra < "${request}" || fail "redirect request is empty"
+  [[ -z "${extra:-}" ]] || fail "redirect request contains extra fields"
+  valid_channel "${channel}" || fail "redirect request channel is invalid"
+  valid_extension "${extension}" || fail "redirect request extension is invalid"
+  run_redirect "${channel}" "${extension}" >/dev/null
+  rm -f -- "${request}"
+}
+
+main() {
+  [[ "${EUID}" -eq 0 ]] || fail "root privileges are required"
+  (( $# == 0 )) || fail "arguments are not accepted"
+  [[ -d "${REQUEST_ROOT}" && ! -L "${REQUEST_ROOT}" ]] || fail "redirect request directory is unavailable"
+  [[ "$(stat -c '%U:%G' "${REQUEST_ROOT}")" == "nbvoice:nbvoice" ]] || \
+    fail "redirect request directory has an unexpected owner"
+  exec 9>"${REQUEST_ROOT}/.lock"
+  flock -n 9 || exit 0
+  local request
+  shopt -s nullglob
+  for request in "${REQUEST_ROOT}"/*.request; do
+    process_request "${request}"
+  done
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

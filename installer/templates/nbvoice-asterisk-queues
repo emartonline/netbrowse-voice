@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+if [[ "${EUID}" -ne 0 ]]; then
+  printf 'Netbrowse Voice Asterisk queues: root privileges are required\n' >&2
+  exit 1
+fi
+if (( $# != 0 )); then
+  printf 'Netbrowse Voice Asterisk queues: arguments are not accepted\n' >&2
+  exit 1
+fi
+
+/usr/sbin/asterisk -rx "queue show"

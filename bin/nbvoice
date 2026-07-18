@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+VERSION="0.24.0-dev.2"
+
+usage() {
+  printf '%s\n' \
+    "Netbrowse Voice ${VERSION}" \
+    "" \
+    "Usage: nbvoice <command>" \
+    "" \
+    "Commands:" \
+    "  status     Show platform service status" \
+    "  doctor     Run local installation checks" \
+    "  restart    Restart the Core API, Asterisk and Nginx" \
+    "  logs       Follow Core API logs" \
+    "  version    Print the installed version"
+}
+
+need_root() {
+  if [[ "${EUID}" -ne 0 ]]; then
+    printf 'This command requires sudo.\n' >&2
+    exit 1
+  fi
+}
+
+status() {
+  local services=(nbvoice-api asterisk postgresql redis-server nginx)
+  printf '%-18s %s\n' "SERVICE" "STATE"
+  printf '%-18s %s\n' "------------------" "--------"
+  for service in "${services[@]}"; do
+    if systemctl is-active --quiet "$service"; then
+      printf '%-18s %s\n' "$service" "online"
+    else
+      printf '%-18s %s\n' "$service" "offline"
+    fi
+  done
+}
+
+doctor() {
+  local failed=0
+  local commands=(node npm psql redis-cli nginx asterisk ffmpeg sox)
+  for command_name in "${commands[@]}"; do
+    if command -v "$command_name" >/dev/null 2>&1; then
+      printf '[ok]      %s\n' "$command_name"
+    else
+      printf '[missing] %s\n' "$command_name"
+      failed=1
+    fi
+  done
+  if curl --fail --silent --max-time 3 http://127.0.0.1:3100/api/health/public >/dev/null; then
+    printf '[ok]      Core API health endpoint\n'
+  else
+    printf '[failed]  Core API health endpoint\n'
+    failed=1
+  fi
+  exit "$failed"
+}
+
+case "${1:-}" in
+  status) status ;;
+  doctor) doctor ;;
+  restart)
+    need_root
+    systemctl restart asterisk nbvoice-api nginx
+    status
+    ;;
+  logs)
+    exec journalctl -u nbvoice-api -f --no-pager
+    ;;
+  version|--version|-v)
+    printf '%s\n' "$VERSION"
+    ;;
+  help|--help|-h|"") usage ;;
+  *)
+    printf 'Unknown command: %s\n\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

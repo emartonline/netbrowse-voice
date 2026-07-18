@@ -1,0 +1,331 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+STAGING_ROOT="/var/lib/netbrowse-voice/asterisk-staging"
+BACKUP_ROOT="/var/lib/netbrowse-voice/config-backups"
+TARGET_ROOT="/etc/asterisk/netbrowse-voice"
+PJSIP_SOURCE="${STAGING_ROOT}/pjsip_extensions.conf"
+DIALPLAN_SOURCE="${STAGING_ROOT}/extensions_internal.conf"
+VOICEMAIL_SOURCE="${STAGING_ROOT}/voicemail_netbrowse.conf"
+TRUNK_SOURCE="${STAGING_ROOT}/pjsip_trunks.conf"
+INBOUND_SOURCE="${STAGING_ROOT}/extensions_inbound.conf"
+OUTBOUND_SOURCE="${STAGING_ROOT}/extensions_outbound.conf"
+CAMPAIGN_SOURCE="${STAGING_ROOT}/extensions_campaigns.conf"
+QUEUES_SOURCE="${STAGING_ROOT}/queues_netbrowse.conf"
+
+fail() {
+  printf 'Netbrowse Voice Asterisk apply: %s\n' "$*" >&2
+  exit 1
+}
+
+validate_source() {
+  local path="$1"
+  [[ -f "${path}" && ! -L "${path}" ]] || fail "missing or unsafe staged file: ${path}"
+  [[ "$(stat -c '%U:%G' "${path}")" == "nbvoice:nbvoice" ]] || \
+    fail "staged file has an unexpected owner: ${path}"
+  (( $(stat -c '%s' "${path}") <= 1048576 )) || fail "staged file is too large: ${path}"
+}
+
+validate_pjsip() {
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \;* ]] && continue
+    [[ "${line}" =~ ^\[(nbvoice-transport-(udp|tcp)|[0-9]{2,8}(-auth)?)\]$ ]] && continue
+    [[ "${line}" =~ ^type=(transport|endpoint|auth|aor)$ ]] && continue
+    [[ "${line}" == "protocol=udp" || "${line}" == "protocol=tcp" || "${line}" == "bind=0.0.0.0:5060" ]] && continue
+    [[ "${line}" == "context=nbvoice-internal" || "${line}" == "disallow=all" ]] && continue
+    [[ "${line}" == "allow=ulaw,alaw,g722" || "${line}" == "auth_type=userpass" ]] && continue
+    [[ "${line}" == "direct_media=no" || "${line}" == "rtp_symmetric=yes" ]] && continue
+    [[ "${line}" == "force_rport=yes" || "${line}" == "rewrite_contact=yes" ]] && continue
+    [[ "${line}" == "remove_existing=yes" || "${line}" == "qualify_frequency=60" ]] && continue
+    [[ "${line}" == "device_state_busy_at=1" ]] && continue
+    [[ "${line}" =~ ^auth=[0-9]{2,8}-auth$ ]] && continue
+    [[ "${line}" =~ ^aors=[0-9]{2,8}$ ]] && continue
+    [[ "${line}" =~ ^username=[0-9]{2,8}$ ]] && continue
+    [[ "${line}" =~ ^password=[A-Za-z0-9_-]{20,64}$ ]] && continue
+    [[ "${line}" =~ ^max_contacts=([1-9]|10)$ ]] && continue
+    [[ "${line}" =~ ^mailboxes=[0-9]{2,8}@nbvoice$ ]] && continue
+    [[ "${line}" =~ ^(call_group|pickup_group)=([0-9]|[1-5][0-9]|6[0-3])$ ]] && continue
+    [[ "${line}" =~ ^callerid=\"[A-Za-z0-9][A-Za-z0-9\ .,\'\-]{0,79}\"\ \<[0-9]{2,8}\>$ ]] && continue
+    fail "rejected unexpected PJSIP directive"
+  done < "${PJSIP_SOURCE}"
+}
+
+validate_dialplan() {
+  local line device_state_re ivr_digit_re ivr_attempt_re
+  device_state_re='^ same => n,GotoIf\(\$\["\$\{DEVICE_STATE\(PJSIP/[0-9]{2,8}\)\}"="BUSY"\]\?busy\)$'
+  ivr_digit_re='^ same => n,GotoIf\(\$\["\$\{NBVOICE_IVR_DIGIT\}"="[0-9]"\]\?option-[0-9]\)$'
+  ivr_attempt_re='^ same => n,GotoIf\(\$\[\$\{NBVOICE_IVR_ATTEMPTS\}<([1-5])\]\?start:fallback\)$'
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \;* || "${line}" == "[nbvoice-internal]" ]] && continue
+    [[ "${line}" =~ ^\[nbvoice-ivr-[0-9a-f]{32}\]$ ]] && continue
+    [[ "${line}" == "exten => *97,1,NoOp(Netbrowse Voice own voicemail access)" ]] && continue
+    [[ "${line}" == ' same => n,VoiceMailMain(${CALLERID(num)}@nbvoice)' ]] && continue
+    [[ "${line}" == "exten => *98,1,NoOp(Netbrowse Voice mailbox access)" ]] && continue
+    [[ "${line}" == " same => n,VoiceMailMain(@nbvoice)" ]] && continue
+    [[ "${line}" == "exten => *8,1,NoOp(Netbrowse Voice group call pickup)" ]] && continue
+    [[ "${line}" == " same => n,Pickup()" ]] && continue
+    [[ "${line}" =~ ^exten\ =\>\ [0-9]{2,8},hint,PJSIP/[0-9]{2,8}$ ]] && continue
+    [[ "${line}" =~ ^exten\ =\>\ [0-9]{2,8},1,NoOp\(Netbrowse\ Voice\ call\ to\ [0-9]{2,8}\)$ ]] && continue
+    [[ "${line}" =~ ^exten\ =\>\ [0-9]{2,8},1,NoOp\(Netbrowse\ Voice\ ring\ group\ [0-9]{2,8}\)$ ]] && continue
+    [[ "${line}" =~ ^exten\ =\>\ [0-9]{2,8},1,NoOp\(Netbrowse\ Voice\ call\ queue\ [0-9]{2,8}\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Set\(NBVOICE_GROUP_MEMBERS=PJSIP/[0-9]{2,8}(&PJSIP/[0-9]{2,8}){0,49}\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Dial\(\$\{NBVOICE_GROUP_MEMBERS\},([5-9]|[1-5][0-9]|60)\)$ ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${DIALSTATUS}"="ANSWER"]?done:fallback)' ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Queue\(nbvq-[0-9a-f]{32},t,,,([1-9][0-9]|[1-5][0-9]{2}|600)\)$ ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${QUEUESTATUS}"="TIMEOUT"]?fallback)' ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${QUEUESTATUS}"="FULL"]?fallback)' ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${QUEUESTATUS}"="JOINEMPTY"]?fallback)' ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${QUEUESTATUS}"="LEAVEEMPTY"]?fallback:done)' ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n\(fallback\),Goto\([0-9]{2,8},1\)$ ]] && continue
+    [[ "${line}" == " same => n(fallback),Playback(vm-nobodyavail)" ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Set\(NBVOICE_CONTACTS=\$\{PJSIP_DIAL_CONTACTS\([0-9]{2,8}\)\}\)$ ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${NBVOICE_CONTACTS}"=""]?unavailable)' ]] && continue
+    [[ "${line}" == ' same => n,Set(NBVOICE_RECORDING=nbv-${UNIQUEID}.wav)' ]] && continue
+    [[ "${line}" == ' same => n,Set(CDR(userfield)=nbvoice-recording:${NBVOICE_RECORDING})' ]] && continue
+    [[ "${line}" == ' same => n,MixMonitor(/var/lib/netbrowse-voice/recordings/${NBVOICE_RECORDING},b)' ]] && continue
+    [[ "${line}" == " same => n,StopMixMonitor()" ]] && continue
+    [[ "${line}" =~ ${device_state_re} ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Dial\(\$\{NBVOICE_CONTACTS\},([0-9]{1,3})\)$ ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${DIALSTATUS}"="BUSY"]?busy)' ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${DIALSTATUS}"="ANSWER"]?done:unavailable)' ]] && continue
+    [[ "${line}" == " same => n(unavailable),Playback(vm-nobodyavail)" ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n\(unavailable\),VoiceMail\([0-9]{2,8}@nbvoice,u\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n\(unavailable\),Goto\([0-9]{2,8},1\)$ ]] && continue
+    [[ "${line}" == " same => n(busy),Busy(5)" ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n\(busy\),VoiceMail\([0-9]{2,8}@nbvoice,b\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n\(busy\),Goto\([0-9]{2,8},1\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Goto\([0-9]{2,8},1\)$ ]] && continue
+    [[ "${line}" == " same => n(done),Hangup()" ]] && continue
+    [[ "${line}" == " same => n,Hangup()" ]] && continue
+    [[ "${line}" =~ ^exten\ =\>\ [0-9]{2,8},1,NoOp\(Netbrowse\ Voice\ IVR\ [0-9]{2,8}\)$ ]] && continue
+    [[ "${line}" =~ ^exten\ =\>\ [0-9]{2,8},1,NoOp\(Netbrowse\ Voice\ AI\ receptionist\ [0-9]{2,8}\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,AGI\(agi://127\.0\.0\.1:4573/agent/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\)$ ]] && continue
+    [[ "${line}" == ' same => n,Playback(netbrowse/nbvai-disclosure-local)' ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Playback\(netbrowse/nbvs-[a-z0-9][a-z0-9-]{0,48}-[0-9a-f]{8}\)$ ]] && continue
+    [[ "${line}" == ' same => n,Set(NBVOICE_AI_CALL_ID=${UUID()})' ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,AGI\(agi://127\.0\.0\.1:4573/stream/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/\$\{NBVOICE_AI_CALL_ID\}\)$ ]] && continue
+    [[ "${line}" == ' same => n,AudioSocket(${NBVOICE_AI_CALL_ID},127.0.0.1:4574)' ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Goto\(nbvoice-ivr-[0-9a-f]{32},s,1\)$ ]] && continue
+    [[ "${line}" =~ ^exten\ =\>\ s,1,NoOp\(Netbrowse\ Voice\ IVR\ [0-9]{2,8}\)$ ]] && continue
+    [[ "${line}" == " same => n,Answer()" ]] && continue
+    [[ "${line}" == " same => n,Wait(1)" ]] && continue
+    [[ "${line}" == " same => n,Set(NBVOICE_IVR_ATTEMPTS=0)" ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n\(start\),Read\(NBVOICE_IVR_DIGIT,netbrowse/nbvs-[a-z0-9][a-z0-9-]{0,48}-[0-9a-f]{8},1,,1,([2-9]|[12][0-9]|30)\)$ ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${NBVOICE_IVR_DIGIT}"=""]?timeout)' ]] && continue
+    [[ "${line}" =~ ${ivr_digit_re} ]] && continue
+    [[ "${line}" == ' same => n,Set(NBVOICE_IVR_ATTEMPTS=$[${NBVOICE_IVR_ATTEMPTS}+1])' ]] && continue
+    [[ "${line}" == " same => n,Playback(pbx-invalid)" ]] && continue
+    [[ "${line}" =~ ${ivr_attempt_re} ]] && continue
+    [[ "${line}" == " same => n(timeout),Goto(fallback)" ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n\(option-[0-9]\),Goto\(nbvoice-internal,[0-9]{2,8},1\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n\(fallback\),Goto\(nbvoice-internal,[0-9]{2,8},1\)$ ]] && continue
+    [[ "${line}" == " same => n(fallback),Hangup()" ]] && continue
+    fail "rejected unexpected dialplan directive"
+  done < "${DIALPLAN_SOURCE}"
+}
+
+validate_voicemail() {
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \;* ]] && continue
+    [[ "${line}" == "[general]" || "${line}" == "[nbvoice]" ]] && continue
+    [[ "${line}" == "format=wav" || "${line}" == "attach=no" ]] && continue
+    [[ "${line}" == "maxmsg=100" || "${line}" == "maxsecs=300" ]] && continue
+    [[ "${line}" == "minsecs=2" || "${line}" == "review=yes" ]] && continue
+    [[ "${line}" == "operator=no" || "${line}" == "saycid=yes" ]] && continue
+    [[ "${line}" == "envelope=yes" ]] && continue
+    [[ "${line}" =~ ^[0-9]{2,8}\ =\>\ [0-9]{4,10},[A-Za-z0-9][A-Za-z0-9\ .,\'\-]{0,79}$ ]] && continue
+    fail "rejected unexpected voicemail directive"
+  done < "${VOICEMAIL_SOURCE}"
+}
+
+validate_trunks() {
+  local line value
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \;* ]] && continue
+    [[ "${line}" =~ ^\[nbvt-[0-9a-f]{32}(-(aor|auth|registration|identify))?\]$ ]] && continue
+    [[ "${line}" =~ ^type=(endpoint|aor|auth|registration|identify)$ ]] && continue
+    [[ "${line}" == "transport=nbvoice-transport-udp" || "${line}" == "transport=nbvoice-transport-tcp" ]] && continue
+    [[ "${line}" =~ ^context=nbvt-[0-9a-f]{32}-inbound$ ]] && continue
+    [[ "${line}" == "disallow=all" ]] && continue
+    [[ "${line}" == "allow=ulaw,alaw,g722" || "${line}" == "auth_type=userpass" ]] && continue
+    [[ "${line}" == "direct_media=no" || "${line}" == "rtp_symmetric=yes" ]] && continue
+    [[ "${line}" == "force_rport=yes" || "${line}" == "rewrite_contact=yes" ]] && continue
+    [[ "${line}" == "trust_id_inbound=yes" || "${line}" == "qualify_frequency=60" ]] && continue
+    [[ "${line}" == "retry_interval=60" || "${line}" == "forbidden_retry_interval=600" ]] && continue
+    [[ "${line}" == "expiration=300" || "${line}" == "line=yes" ]] && continue
+    [[ "${line}" =~ ^(aors|outbound_auth|endpoint)=nbvt-[0-9a-f]{32}(-(aor|auth))?$ ]] && continue
+    [[ "${line}" =~ ^from_user=[A-Za-z0-9_.+-]{1,128}$ ]] && continue
+    [[ "${line}" =~ ^from_domain=[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]] && continue
+    [[ "${line}" =~ ^username=[A-Za-z0-9_.+-]{1,128}$ ]] && continue
+    [[ "${line}" =~ ^(contact|server_uri)=sip:[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?:[0-9]{1,5}$ ]] && continue
+    [[ "${line}" =~ ^client_uri=sip:[A-Za-z0-9_.+-]{1,128}@[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]] && continue
+    [[ "${line}" =~ ^match=([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$ ]] && continue
+    if [[ "${line}" == password=* ]]; then
+      value="${line#password=}"
+      if (( ${#value} >= 1 && ${#value} <= 128 )) &&
+         [[ "${value}" =~ ^[[:graph:]]+$ ]] &&
+         [[ "${value}" != *\;* && "${value}" != *\"* && "${value}" != *\\* ]]; then
+        continue
+      fi
+    fi
+    fail "rejected unexpected SIP trunk directive"
+  done < "${TRUNK_SOURCE}"
+}
+
+validate_inbound() {
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \;* ]] && continue
+    [[ "${line}" =~ ^\[nbvt-[0-9a-f]{32}-inbound\]$ ]] && continue
+    [[ "${line}" =~ ^exten\ =\>\ \+?[0-9]{3,20},1,NoOp\(Netbrowse\ Voice\ inbound\ DID\ \+?[0-9]{3,20}\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Goto\(nbvoice-internal,[0-9]{2,8},1\)$ ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Goto\(nbvoice-ivr-[0-9a-f]{32},s,1\)$ ]] && continue
+    [[ "${line}" == "exten => _X!,1,NoOp(Netbrowse Voice unrouted inbound number)" ]] && continue
+    [[ "${line}" == "exten => _+X!,1,NoOp(Netbrowse Voice unrouted inbound number)" ]] && continue
+    [[ "${line}" == " same => n,Hangup()" ]] && continue
+    fail "rejected unexpected inbound route directive"
+  done < "${INBOUND_SOURCE}"
+}
+
+validate_outbound() {
+  local line route_re destination_re dial_re authorization_re
+  route_re='^exten => _[0-9]{1,4}X{8,15},1,Goto\(nbvoice-outbound-[0-9a-f]{32},\$\{EXTEN:[1-4]\},1\)$'
+  destination_re='^ same => n,Set\(NBVOICE_OUTBOUND_DESTINATION=([0-9]{0,20}|\+)?\$\{EXTEN\}\)$'
+  dial_re='^ same => n,Dial\(PJSIP/\$\{NBVOICE_OUTBOUND_DESTINATION\}@nbvt-[0-9a-f]{32},(1[0-9]|[2-9][0-9]|1[01][0-9]|120)\)$'
+  authorization_re='^ same => n,AGI\(agi://127\.0\.0\.1:4573/billing-authorize/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/\$\{CHANNEL\(endpoint\)\}/\$\{EXTEN\}\)$'
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \;* || "${line}" == "[nbvoice-internal]" ]] && continue
+    [[ "${line}" =~ ^\[nbvoice-outbound-[0-9a-f]{32}\]$ ]] && continue
+    [[ "${line}" =~ ${route_re} ]] && continue
+    [[ "${line}" == "exten => _X!,1,NoOp(Netbrowse Voice outbound route)" ]] && continue
+    [[ "${line}" =~ ${authorization_re} ]] && continue
+    [[ "${line}" == ' same => n,GotoIf($["${NBVOICE_BILLING_ALLOWED}"="1"]?authorized:blocked)' ]] && continue
+    [[ "${line}" == " same => n(blocked),Set(CDR(peeraccount)=NBVOICE:BILLING_BLOCKED)" ]] && continue
+    [[ "${line}" == " same => n,Playback(netbrowse/nbvoice-billing-blocked)" ]] && continue
+    [[ "${line}" == ' same => n(authorized),Set(CDR(accountcode)=${NBVOICE_BILLING_CUSTOMER_ID})' ]] && continue
+    [[ "${line}" =~ ${destination_re} ]] && continue
+    [[ "${line}" =~ ^\ same\ =\>\ n,Set\(CALLERID\(num\)=\+[1-9][0-9]{7,14}\)$ ]] && continue
+    [[ "${line}" =~ ${dial_re} ]] && continue
+    [[ "${line}" == ' same => n,Set(CDR(peeraccount)=NBVOICE:${DIALSTATUS})' ]] && continue
+    [[ "${line}" == " same => n,Hangup()" ]] && continue
+    fail "rejected unexpected outbound dialplan directive"
+  done < "${OUTBOUND_SOURCE}"
+}
+
+validate_campaigns() {
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \;* ]] && continue
+    [[ "${line}" == "[nbvoice-campaign-originate]" ]] && continue
+    [[ "${line}" == "exten => s,1,NoOp(Netbrowse Voice campaign call)" ]] && continue
+    [[ "${line}" == ' same => n,Set(CALLERID(num)=${NBVOICE_CAMPAIGN_CALLER_ID})' ]] && continue
+    [[ "${line}" == ' same => n,Dial(PJSIP/${NBVOICE_CAMPAIGN_DESTINATION}@${NBVOICE_CAMPAIGN_TRUNK},${NBVOICE_CAMPAIGN_RING_TIMEOUT})' ]] && continue
+    [[ "${line}" == ' same => n,Set(NBVOICE_CAMPAIGN_RESULT=${DIALSTATUS})' ]] && continue
+    [[ "${line}" == ' same => n,Set(CDR(peeraccount)=NBVOICE:${NBVOICE_CAMPAIGN_RESULT})' ]] && continue
+    [[ "${line}" == ' same => n,AGI(agi://127.0.0.1:4573/campaign-result/${NBVOICE_CAMPAIGN_ATTEMPT_ID}/${NBVOICE_CAMPAIGN_RESULT})' ]] && continue
+    [[ "${line}" == " same => n,Hangup()" ]] && continue
+    fail "rejected unexpected campaign dialplan directive"
+  done < "${CAMPAIGN_SOURCE}"
+}
+
+validate_queues() {
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" == \;* ]] && continue
+    [[ "${line}" =~ ^\[nbvq-[0-9a-f]{32}\]$ ]] && continue
+    [[ "${line}" =~ ^strategy=(ringall|rrmemory|leastrecent)$ ]] && continue
+    [[ "${line}" =~ ^timeout=([5-9]|[1-5][0-9]|60)$ ]] && continue
+    [[ "${line}" =~ ^retry=([1-9]|[12][0-9]|30)$ ]] && continue
+    [[ "${line}" =~ ^wrapuptime=([0-9]|[1-9][0-9]|1[01][0-9]|120)$ ]] && continue
+    [[ "${line}" == "musicclass=default" ]] && continue
+    [[ "${line}" == "joinempty=no" || "${line}" == "leavewhenempty=yes" ]] && continue
+    [[ "${line}" == "autofill=yes" || "${line}" == "ringinuse=no" ]] && continue
+    [[ "${line}" =~ ^member\ =\>\ PJSIP/[0-9]{2,8},0,,PJSIP/[0-9]{2,8},no,([0-9]|[1-9][0-9]|1[01][0-9]|120),(yes|no)$ ]] && continue
+    fail "rejected unexpected queue directive"
+  done < "${QUEUES_SOURCE}"
+}
+
+main() {
+  [[ "${EUID}" -eq 0 ]] || fail "root privileges are required"
+  (( $# == 0 )) || fail "arguments are not accepted"
+
+  validate_source "${PJSIP_SOURCE}"
+  validate_source "${DIALPLAN_SOURCE}"
+  validate_source "${VOICEMAIL_SOURCE}"
+  validate_source "${TRUNK_SOURCE}"
+  validate_source "${INBOUND_SOURCE}"
+  validate_source "${OUTBOUND_SOURCE}"
+  validate_source "${CAMPAIGN_SOURCE}"
+  validate_source "${QUEUES_SOURCE}"
+  validate_pjsip
+  validate_dialplan
+  validate_voicemail
+  validate_trunks
+  validate_inbound
+  validate_outbound
+  validate_campaigns
+  validate_queues
+
+  install -d -m 0750 -o root -g asterisk "${TARGET_ROOT}"
+  install -d -m 0700 -o root -g root "${BACKUP_ROOT}"
+
+  local stamp backup name pjsip_include dialplan_include voicemail_include trunk_include inbound_include outbound_include campaign_include queues_include
+  stamp="$(date -u +%Y%m%dT%H%M%S%N)"
+  backup="${BACKUP_ROOT}/${stamp}"
+  install -d -m 0700 -o root -g root "${backup}"
+  for name in pjsip_extensions.conf extensions_internal.conf voicemail_netbrowse.conf \
+    pjsip_trunks.conf extensions_inbound.conf extensions_outbound.conf \
+    extensions_campaigns.conf queues_netbrowse.conf; do
+    if [[ -f "${TARGET_ROOT}/${name}" ]]; then
+      install -m 0600 -o root -g root "${TARGET_ROOT}/${name}" "${backup}/${name}"
+    fi
+  done
+
+  install -m 0640 -o root -g asterisk "${PJSIP_SOURCE}" "${TARGET_ROOT}/pjsip_extensions.conf.new"
+  install -m 0640 -o root -g asterisk "${DIALPLAN_SOURCE}" "${TARGET_ROOT}/extensions_internal.conf.new"
+  install -m 0640 -o root -g asterisk "${VOICEMAIL_SOURCE}" "${TARGET_ROOT}/voicemail_netbrowse.conf.new"
+  install -m 0640 -o root -g asterisk "${TRUNK_SOURCE}" "${TARGET_ROOT}/pjsip_trunks.conf.new"
+  install -m 0640 -o root -g asterisk "${INBOUND_SOURCE}" "${TARGET_ROOT}/extensions_inbound.conf.new"
+  install -m 0640 -o root -g asterisk "${OUTBOUND_SOURCE}" "${TARGET_ROOT}/extensions_outbound.conf.new"
+  install -m 0640 -o root -g asterisk "${CAMPAIGN_SOURCE}" "${TARGET_ROOT}/extensions_campaigns.conf.new"
+  install -m 0640 -o root -g asterisk "${QUEUES_SOURCE}" "${TARGET_ROOT}/queues_netbrowse.conf.new"
+  mv -f "${TARGET_ROOT}/pjsip_extensions.conf.new" "${TARGET_ROOT}/pjsip_extensions.conf"
+  mv -f "${TARGET_ROOT}/extensions_internal.conf.new" "${TARGET_ROOT}/extensions_internal.conf"
+  mv -f "${TARGET_ROOT}/voicemail_netbrowse.conf.new" "${TARGET_ROOT}/voicemail_netbrowse.conf"
+  mv -f "${TARGET_ROOT}/pjsip_trunks.conf.new" "${TARGET_ROOT}/pjsip_trunks.conf"
+  mv -f "${TARGET_ROOT}/extensions_inbound.conf.new" "${TARGET_ROOT}/extensions_inbound.conf"
+  mv -f "${TARGET_ROOT}/extensions_outbound.conf.new" "${TARGET_ROOT}/extensions_outbound.conf"
+  mv -f "${TARGET_ROOT}/extensions_campaigns.conf.new" "${TARGET_ROOT}/extensions_campaigns.conf"
+  mv -f "${TARGET_ROOT}/queues_netbrowse.conf.new" "${TARGET_ROOT}/queues_netbrowse.conf"
+
+  pjsip_include="#include netbrowse-voice/pjsip_extensions.conf"
+  dialplan_include="#include netbrowse-voice/extensions_internal.conf"
+  voicemail_include="#include netbrowse-voice/voicemail_netbrowse.conf"
+  trunk_include="#include netbrowse-voice/pjsip_trunks.conf"
+  inbound_include="#include netbrowse-voice/extensions_inbound.conf"
+  outbound_include="#include netbrowse-voice/extensions_outbound.conf"
+  campaign_include="#include netbrowse-voice/extensions_campaigns.conf"
+  queues_include="#include netbrowse-voice/queues_netbrowse.conf"
+  grep -Fqx "${pjsip_include}" /etc/asterisk/pjsip.conf || printf '\n%s\n' "${pjsip_include}" >> /etc/asterisk/pjsip.conf
+  grep -Fqx "${dialplan_include}" /etc/asterisk/extensions.conf || printf '\n%s\n' "${dialplan_include}" >> /etc/asterisk/extensions.conf
+  grep -Fqx "${voicemail_include}" /etc/asterisk/voicemail.conf || printf '\n%s\n' "${voicemail_include}" >> /etc/asterisk/voicemail.conf
+  grep -Fqx "${trunk_include}" /etc/asterisk/pjsip.conf || printf '\n%s\n' "${trunk_include}" >> /etc/asterisk/pjsip.conf
+  grep -Fqx "${inbound_include}" /etc/asterisk/extensions.conf || printf '\n%s\n' "${inbound_include}" >> /etc/asterisk/extensions.conf
+  grep -Fqx "${outbound_include}" /etc/asterisk/extensions.conf || printf '\n%s\n' "${outbound_include}" >> /etc/asterisk/extensions.conf
+  grep -Fqx "${campaign_include}" /etc/asterisk/extensions.conf || printf '\n%s\n' "${campaign_include}" >> /etc/asterisk/extensions.conf
+  grep -Fqx "${queues_include}" /etc/asterisk/queues.conf || printf '\n%s\n' "${queues_include}" >> /etc/asterisk/queues.conf
+
+  asterisk -rx "core reload" >/dev/null
+
+  find "${BACKUP_ROOT}" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
+    | sort -rn \
+    | awk 'NR > 20 { sub(/^[^ ]+ /, ""); print }' \
+    | while IFS= read -r old_backup; do rm -rf -- "${old_backup}"; done
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

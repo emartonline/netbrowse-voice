@@ -1,0 +1,6 @@
+nbvoice ALL=(root) NOPASSWD: /usr/local/libexec/nbvoice-asterisk-apply ""
+nbvoice ALL=(root) NOPASSWD: /usr/local/libexec/nbvoice-asterisk-status ""
+nbvoice ALL=(root) NOPASSWD: /usr/local/libexec/nbvoice-asterisk-queues ""
+nbvoice ALL=(root) NOPASSWD: /usr/local/libexec/nbvoice-asterisk-calls ""
+nbvoice ALL=(root) NOPASSWD: /usr/local/libexec/nbvoice-asterisk-redirect ""
+nbvoice ALL=(root) NOPASSWD: /usr/local/libexec/nbvoice-asterisk-campaign-submit ""

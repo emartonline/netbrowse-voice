@@ -1,0 +1,25 @@
+
+# Dependencies and builds
+node_modules/
+dist/
+coverage/
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example
+!.env*.example
+*.pem
+*.key
+*.crt
+
+# Runtime and private data
+*.log
+recordings/
+backups/
+uploads/
+tmp/
+
+# Operating system files
+.DS_Store
+Thumbs.db

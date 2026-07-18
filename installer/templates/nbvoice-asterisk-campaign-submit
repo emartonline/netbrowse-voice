@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+OUTBOX_ROOT="/var/lib/netbrowse-voice/campaign-outbox"
+SPOOL_ROOT="/var/spool/asterisk"
+OUTGOING_ROOT="${SPOOL_ROOT}/outgoing"
+
+fail() {
+  printf 'Netbrowse Voice campaign submit: %s\n' "$*" >&2
+  exit 1
+}
+
+expected_request_owner() {
+  printf 'nbvoice:nbvoice'
+}
+
+install_call_file() {
+  local source="$1"
+  local filename="$2"
+  local temporary="${SPOOL_ROOT}/.${filename}.new"
+  install -m 0600 -o asterisk -g asterisk "${source}" "${temporary}"
+  mv -f -- "${temporary}" "${OUTGOING_ROOT}/${filename}"
+}
+
+validate_request() {
+  local request="$1"
+  local filename
+  local -a lines
+  filename="$(basename -- "${request}")"
+  [[ "${filename}" =~ ^nbvoice-campaign-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.call$ ]] || \
+    fail "campaign request filename is invalid"
+  [[ -f "${request}" && ! -L "${request}" ]] || fail "unsafe campaign request"
+  [[ "$(stat -c '%U:%G' "${request}")" == "$(expected_request_owner)" ]] || \
+    fail "campaign request has an unexpected owner"
+  [[ "$(stat -c '%a' "${request}")" == "600" ]] || fail "campaign request permissions are unsafe"
+  (( $(stat -c '%s' "${request}") <= 2048 )) || fail "campaign request is too large"
+  mapfile -t lines < "${request}"
+  (( ${#lines[@]} == 14 )) || fail "campaign request has an unexpected shape"
+  [[ "${lines[0]}" == "Channel: Local/s@nbvoice-campaign-originate/n" ]] || fail "invalid campaign channel"
+  [[ "${lines[1]}" =~ ^Callerid:\ \+[1-9][0-9]{7,14}$ ]] || fail "invalid campaign caller ID"
+  [[ "${lines[2]}" == "MaxRetries: 0" ]] || fail "invalid campaign retries"
+  [[ "${lines[3]}" == "RetryTime: 60" ]] || fail "invalid campaign retry time"
+  [[ "${lines[4]}" =~ ^WaitTime:\ (1[0-9]|[2-9][0-9]|1[01][0-9]|120)$ ]] || fail "invalid campaign wait time"
+  [[ "${lines[5]}" == "Context: nbvoice-internal" ]] || fail "invalid campaign handoff context"
+  [[ "${lines[6]}" =~ ^Extension:\ [0-9]{2,8}$ ]] || fail "invalid campaign handoff extension"
+  [[ "${lines[7]}" == "Priority: 1" ]] || fail "invalid campaign priority"
+  [[ "${lines[8]}" =~ ^Setvar:\ __NBVOICE_CAMPAIGN_ATTEMPT_ID=[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]] || fail "invalid campaign attempt"
+  [[ "${lines[9]}" =~ ^Setvar:\ __NBVOICE_CAMPAIGN_DESTINATION=\+?[0-9]{8,21}$ ]] || fail "invalid campaign destination"
+  [[ "${lines[10]}" =~ ^Setvar:\ __NBVOICE_CAMPAIGN_TRUNK=nbvt-[0-9a-f]{32}$ ]] || fail "invalid campaign trunk"
+  [[ "${lines[11]}" =~ ^Setvar:\ __NBVOICE_CAMPAIGN_CALLER_ID=\+[1-9][0-9]{7,14}$ ]] || fail "invalid campaign caller ID variable"
+  [[ "${lines[12]}" =~ ^Setvar:\ __NBVOICE_CAMPAIGN_RING_TIMEOUT=(1[0-9]|[2-9][0-9]|1[01][0-9]|120)$ ]] || fail "invalid campaign ring timeout"
+  [[ "${lines[13]}" == "Archive: no" ]] || fail "invalid campaign archive setting"
+}
+
+process_request() {
+  local request="$1"
+  local filename
+  filename="$(basename -- "${request}")"
+  validate_request "${request}"
+  install_call_file "${request}" "${filename}"
+  rm -f -- "${request}"
+}
+
+main() {
+  [[ "${EUID}" -eq 0 ]] || fail "root privileges are required"
+  (( $# == 0 )) || fail "arguments are not accepted"
+  [[ -d "${OUTBOX_ROOT}" && ! -L "${OUTBOX_ROOT}" ]] || fail "campaign outbox is unavailable"
+  [[ "$(stat -c '%U:%G' "${OUTBOX_ROOT}")" == "nbvoice:nbvoice" ]] || \
+    fail "campaign outbox has an unexpected owner"
+  [[ -d "${OUTGOING_ROOT}" && ! -L "${OUTGOING_ROOT}" ]] || fail "Asterisk outgoing spool is unavailable"
+  exec 9>"${OUTBOX_ROOT}/.lock"
+  flock -n 9 || exit 0
+  local request
+  shopt -s nullglob
+  for request in "${OUTBOX_ROOT}"/*.call; do
+    process_request "${request}"
+  done
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
