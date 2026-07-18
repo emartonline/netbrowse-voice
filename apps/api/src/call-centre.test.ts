@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   queueIdentifier,
+  renderAiQueueHandoffContexts,
   renderCallGroupRoutes,
   renderQueueConfig,
   type CallGroupConfigRow,
@@ -65,6 +66,17 @@ test("queue dialplan enforces maximum wait and fallback", () => {
   assert.match(output, /QUEUESTATUS.*TIMEOUT/);
   assert.match(output, /QUEUESTATUS.*JOINEMPTY/);
   assert.match(output, /n\(fallback\),Goto\(100,1\)/);
+});
+
+test("AI handoffs into queues start default music before normal queue routing", () => {
+  const output = renderAiQueueHandoffContexts([group]).join("\n");
+  assert.match(output, /\[nbvoice-ai-queue-handoff\]/);
+  assert.match(output, /exten => 600,1,NoOp\(Netbrowse Voice AI queue handoff 600\)/);
+  assert.match(output, /StartMusicOnHold\(default\)/);
+  assert.match(output, /Goto\(nbvoice-internal,600,1\)/);
+
+  const ringGroup = { ...group, group_type: "ring_group" as const, extension_number: "601" };
+  assert.equal(renderAiQueueHandoffContexts([ringGroup]).length, 0);
 });
 
 test("ring groups ring all validated members without queue configuration", () => {

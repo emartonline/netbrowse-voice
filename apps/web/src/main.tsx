@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import "./reseller.css";
@@ -1128,6 +1128,55 @@ type CallHistory = {
     billableSeconds: number;
   };
 };
+
+type PayPalCheckoutConfig = {
+  available: boolean;
+  reason: string;
+  mode: "sandbox" | "live";
+  clientId: string | null;
+  currency: string;
+  minimumTopup: number;
+  maximumTopup: number;
+};
+
+type PayPalGatewaySettings = {
+  mode: "sandbox";
+  clientId: string;
+  secretConfigured: boolean;
+  configured: boolean;
+  source: "gui" | "environment" | "unconfigured";
+  minimumTopup: number;
+  maximumTopup: number;
+};
+
+type PayPalCheckoutOrder = {
+  checkoutId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  mode: "sandbox" | "live";
+};
+
+type PayPalButtons = {
+  render: (container: HTMLElement) => Promise<void> | void;
+  close?: () => Promise<void> | void;
+};
+
+type PayPalSdk = {
+  Buttons: (options: {
+    createOrder: () => Promise<string>;
+    onApprove: (data: { orderID?: string }) => Promise<void>;
+    onCancel?: () => void;
+    onError?: (error: unknown) => void;
+    style?: { layout?: "vertical"; color?: "gold" | "blue" | "silver" | "black" | "white"; shape?: "rect" | "pill"; label?: "paypal" | "checkout" | "pay" | "buynow" };
+  }) => PayPalButtons;
+};
+
+declare global {
+  interface Window {
+    paypal?: PayPalSdk;
+  }
+}
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = new Headers(options?.headers);
@@ -7605,7 +7654,7 @@ function Campaigns() {
   );
 }
 
-function Billing() {
+function Billing({ isOwner }: { isOwner: boolean }) {
   const [data, setData] = useState<BillingData | null>(null);
   const [invoiceData, setInvoiceData] = useState<InvoiceAdminData | null>(null);
   const [draft, setDraft] = useState<BillingDeckDraft | null>(null);
@@ -8080,6 +8129,7 @@ function Billing() {
           <small>Immutable charge snapshots</small>
         </article>
       </section>
+      {isOwner && <PayPalSandboxSettingsPanel />}
       <section className="panel billing-invoices-panel">
         <div className="panel-head">
           <div>
@@ -10951,8 +11001,8 @@ function AiReceptionist() {
             <div className="form-section">
               <span>CALL LIMITS AND HANDOFF</span>
               <p>
-                Short limits keep calls predictable while this first release is
-                tested internally.
+                Tutorial-style calls can run for up to 100 turns. Set a sensible
+                limit for the expected call length and API usage.
               </p>
             </div>
             <label>
@@ -11007,21 +11057,20 @@ function AiReceptionist() {
             <div className="form-grid">
               <label>
                 <span>Maximum turns</span>
-                <select
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
                   value={draft.maxTurns}
                   onChange={(event) =>
                     setDraft({ ...draft, maxTurns: Number(event.target.value) })
                   }
-                >
-                  {[1, 2, 3, 4, 5, 6].map((turns) => (
-                    <option key={turns} value={turns}>
-                      {turns} turn{turns === 1 ? "" : "s"}
-                    </option>
-                  ))}
-                </select>
+                />
                 <small>
-                  At the limit, the AI announces and transfers to the selected
-                  human destination. Without one, it closes politely.
+                  Choose 1 to 100 turns. At the limit, the AI announces and
+                  transfers to the selected human destination. Without one, it
+                  closes politely.
                 </small>
               </label>
               <label>
@@ -11651,7 +11700,7 @@ function AgentWorkspace({
             }
           />
           {registrationLabel}
-          <small>Hackathon build · 0.30.1</small>
+          <small>Hackathon build · 0.32.2</small>
         </footer>
       </aside>
       <main className="agent-workspace-main">
@@ -12615,6 +12664,421 @@ function CustomerDidMarketplacePanel({
   );
 }
 
+let paypalSdkPromise: Promise<PayPalSdk> | null = null;
+let paypalSdkKey = "";
+
+function loadPayPalSdk(clientId: string, currency: string): Promise<PayPalSdk> {
+  const key = `${clientId}:${currency}`;
+  if (window.paypal && (!paypalSdkKey || paypalSdkKey === key)) {
+    paypalSdkKey = key;
+    return Promise.resolve(window.paypal);
+  }
+  if (window.paypal && paypalSdkKey !== key) {
+    return Promise.reject(new Error("Reload the page before switching the PayPal account or currency"));
+  }
+  if (paypalSdkPromise && paypalSdkKey === key) return paypalSdkPromise;
+  if (paypalSdkPromise && paypalSdkKey !== key) {
+    return Promise.reject(new Error("Reload the page before switching the PayPal account or currency"));
+  }
+  paypalSdkKey = key;
+  paypalSdkPromise = new Promise<PayPalSdk>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}&intent=capture&components=buttons`;
+    script.async = true;
+    script.dataset.netbrowsePaypal = "true";
+    script.onload = () => window.paypal
+      ? resolve(window.paypal)
+      : reject(new Error("PayPal did not load correctly"));
+    script.onerror = () => reject(new Error("PayPal could not be loaded"));
+    document.head.append(script);
+  });
+  return paypalSdkPromise;
+}
+
+/**
+ * The merchant secret is deliberately write-only.  The API never returns it
+ * and the browser clears the input after every successful save.
+ */
+function PayPalSandboxSettingsPanel() {
+  const [settings, setSettings] = useState<PayPalGatewaySettings | null>(null);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [minimumTopup, setMinimumTopup] = useState("10.00");
+  const [maximumTopup, setMaximumTopup] = useState("500.00");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function load() {
+    try {
+      const current = await api<PayPalGatewaySettings>(
+        "/api/billing/payments/paypal/settings",
+      );
+      setSettings(current);
+      setClientId(current.clientId);
+      setMinimumTopup(current.minimumTopup.toFixed(2));
+      setMaximumTopup(current.maximumTopup.toFixed(2));
+      setError("");
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Could not load PayPal Sandbox settings",
+      );
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const saved = await api<PayPalGatewaySettings>(
+        "/api/billing/payments/paypal/settings",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            clientId,
+            clientSecret,
+            minimumTopup: Number(minimumTopup),
+            maximumTopup: Number(maximumTopup),
+          }),
+        },
+      );
+      setSettings(saved);
+      setClientId(saved.clientId);
+      setClientSecret("");
+      setMinimumTopup(saved.minimumTopup.toFixed(2));
+      setMaximumTopup(saved.maximumTopup.toFixed(2));
+      setNotice(
+        "PayPal Sandbox details were saved. New wallet top-ups will use them immediately.",
+      );
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "PayPal Sandbox settings could not be saved",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const sourceLabel = settings?.source === "gui"
+    ? "GUI SETTINGS"
+    : settings?.source === "environment"
+      ? "SERVER FALLBACK"
+      : "NOT CONFIGURED";
+  const needsSecret = settings?.source !== "gui" || !settings?.secretConfigured;
+
+  return (
+    <section className="panel paypal-gateway-settings">
+      <div className="panel-head">
+        <div>
+          <span>PAYMENT GATEWAY</span>
+          <h3>PayPal Sandbox</h3>
+        </div>
+        <span className={`paypal-mode ${settings?.configured ? "sandbox" : "disabled"}`}>
+          {sourceLabel}
+        </span>
+      </div>
+      {error && <div className="paypal-message error" role="alert">{error}</div>}
+      {notice && <div className="paypal-message notice" role="status">{notice}</div>}
+      {!settings ? (
+        <div className="paypal-loading"><div className="loader dark" /><span>Loading secure payment settings…</span></div>
+      ) : (
+        <form className="paypal-gateway-form" onSubmit={save}>
+          <div className="paypal-gateway-intro">
+            <strong>Sandbox only</strong>
+            <span>
+              This owner-only panel controls customer wallet top-ups. Live payments stay disabled in this hackathon build.
+            </span>
+          </div>
+          <div className="paypal-gateway-grid">
+            <label>
+              <span>Sandbox client ID</span>
+              <input
+                required
+                minLength={16}
+                maxLength={256}
+                value={clientId}
+                onChange={(event) => setClientId(event.target.value)}
+                placeholder="Paste the PayPal Sandbox client ID"
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              <span>Sandbox client secret</span>
+              <input
+                required={needsSecret}
+                type="password"
+                minLength={16}
+                maxLength={256}
+                value={clientSecret}
+                onChange={(event) => setClientSecret(event.target.value)}
+                placeholder={
+                  settings.secretConfigured
+                    ? "Saved securely — leave blank to keep it"
+                    : "Paste the PayPal Sandbox client secret"
+                }
+                autoComplete="new-password"
+              />
+              <small>
+                {settings.secretConfigured
+                  ? "The saved secret is never shown again. Leave this blank to retain it."
+                  : "Required on the first GUI save."}
+              </small>
+            </label>
+            <label>
+              <span>Minimum wallet top-up</span>
+              <input
+                required
+                inputMode="decimal"
+                value={minimumTopup}
+                onChange={(event) => setMinimumTopup(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Maximum wallet top-up</span>
+              <input
+                required
+                inputMode="decimal"
+                value={maximumTopup}
+                onChange={(event) => setMaximumTopup(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="paypal-gateway-actions">
+            <button className="primary-button compact" disabled={busy}>
+              {busy ? "Saving details…" : "Save Sandbox details"}
+            </button>
+            <small>
+              The secret is encrypted before storage and cannot be read back from this panel. Use credentials supplied by the authorised business owner.
+            </small>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function PayPalWalletTopupPanel({
+  currency,
+  billingMode,
+  onCredited,
+}: {
+  currency: string;
+  billingMode: "prepaid" | "postpaid";
+  onCredited: () => Promise<void>;
+}) {
+  const [gateway, setGateway] = useState<PayPalCheckoutConfig | null>(null);
+  const [amount, setAmount] = useState("25.00");
+  const [sdkReady, setSdkReady] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [pendingCheckoutId, setPendingCheckoutId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const buttonContainer = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const configuration = await api<PayPalCheckoutConfig>(
+          "/api/customer/payments/paypal/config",
+        );
+        if (cancelled) return;
+        setGateway(configuration);
+        setAmount(
+          configuration.minimumTopup.toFixed(
+            ["HUF", "JPY", "TWD"].includes(configuration.currency) ? 0 : 2,
+          ),
+        );
+        setError("");
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error ? loadError.message : "Could not load PayPal checkout",
+          );
+        }
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [currency, billingMode]);
+
+  useEffect(() => {
+    if (!gateway?.available || !gateway.clientId) return;
+    let cancelled = false;
+    void loadPayPalSdk(gateway.clientId, gateway.currency)
+      .then(() => { if (!cancelled) setSdkReady(true); })
+      .catch((loadError: unknown) => {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : "Could not load PayPal checkout");
+        }
+      });
+    return () => { cancelled = true; };
+  }, [gateway?.available, gateway?.clientId, gateway?.currency]);
+
+  async function captureCheckout(checkoutId: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const receipt = await api<{
+        amount: number;
+        currency: string;
+        alreadyCaptured?: boolean;
+      }>(`/api/customer/payments/paypal/orders/${checkoutId}/capture`, {
+        method: "POST",
+        body: "{}",
+      });
+      setPendingCheckoutId(null);
+      setCheckoutOpen(false);
+      setNotice(
+        receipt.alreadyCaptured
+          ? "This PayPal payment was already credited to your wallet."
+          : `${formatMoney(receipt.amount, receipt.currency)} was added to your wallet.`,
+      );
+      await onCredited();
+    } catch (captureError) {
+      setError(
+        captureError instanceof Error
+          ? captureError.message
+          : "PayPal could not confirm this payment",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!checkoutOpen || !gateway?.available || !gateway.clientId || !sdkReady) return;
+    const container = buttonContainer.current;
+    const sdk = window.paypal;
+    if (!container || !sdk) return;
+    let cancelled = false;
+    let order: PayPalCheckoutOrder | null = null;
+    let buttons: PayPalButtons | null = null;
+    container.replaceChildren();
+    try {
+      buttons = sdk.Buttons({
+        style: { layout: "vertical", color: "gold", shape: "rect", label: "paypal" },
+        createOrder: async () => {
+          if (order) return order.orderId;
+          const created = await api<PayPalCheckoutOrder>(
+            "/api/customer/payments/paypal/orders",
+            { method: "POST", body: JSON.stringify({ amount }) },
+          );
+          if (cancelled) throw new Error("PayPal checkout was closed");
+          order = created;
+          setPendingCheckoutId(created.checkoutId);
+          return created.orderId;
+        },
+        onApprove: async (approval) => {
+          if (!order || !order.checkoutId || approval.orderID !== order.orderId) {
+            setError("PayPal approval did not match this wallet top-up");
+            return;
+          }
+          await captureCheckout(order.checkoutId);
+        },
+        onCancel: () => setNotice("PayPal checkout was cancelled. No wallet credit was added."),
+        onError: () => setError("PayPal checkout could not be completed. Try again or retry confirmation."),
+      });
+      void Promise.resolve(buttons.render(container)).catch(() => {
+        if (!cancelled) setError("PayPal checkout could not be displayed");
+      });
+    } catch {
+      setError("PayPal checkout could not be displayed");
+    }
+    return () => {
+      cancelled = true;
+      void buttons?.close?.();
+      container.replaceChildren();
+    };
+  }, [amount, checkoutOpen, gateway?.available, gateway?.clientId, gateway?.currency, sdkReady]);
+
+  const paymentReady = gateway?.available === true && sdkReady;
+
+  return (
+    <div className="paypal-wallet-topup">
+      <div className="paypal-wallet-topup-head">
+        <div>
+          <span>ADD WALLET CREDIT</span>
+          <h4>Pay with PayPal</h4>
+        </div>
+        {gateway && <span className={`paypal-mode ${gateway.available ? gateway.mode : "disabled"}`}>
+          {gateway.available ? gateway.mode : "unavailable"}
+        </span>}
+      </div>
+      {error && <div className="paypal-message error" role="alert">{error}</div>}
+      {notice && <div className="paypal-message notice" role="status">{notice}</div>}
+      {!gateway ? (
+        <div className="paypal-loading"><div className="loader dark" /><span>Checking PayPal checkout…</span></div>
+      ) : !gateway.available ? (
+        <div className="portal-boundary-note">
+          <strong>PayPal unavailable</strong><span>{gateway.reason}</span>
+        </div>
+      ) : (
+        <>
+          <div className="paypal-topup-form">
+            <label>
+              <span>Amount ({gateway.currency})</span>
+              <input
+                inputMode="decimal"
+                value={amount}
+                disabled={checkoutOpen || busy}
+                onChange={(event) => setAmount(event.target.value)}
+                aria-label="Wallet top-up amount"
+              />
+              <small>
+                From {formatMoney(gateway.minimumTopup, gateway.currency)} to {formatMoney(gateway.maximumTopup, gateway.currency)}
+              </small>
+            </label>
+            {!checkoutOpen && <button
+              type="button"
+              className="primary-button compact"
+              disabled={!paymentReady}
+              onClick={() => { setError(""); setNotice(""); setCheckoutOpen(true); }}
+            >
+              {sdkReady ? "Continue to PayPal" : "Loading PayPal…"}
+            </button>}
+          </div>
+          {checkoutOpen && <div className="paypal-button-stage">
+            <div ref={buttonContainer} />
+            {busy && <p>Confirming your payment and crediting the wallet…</p>}
+            {pendingCheckoutId && error && <button
+              type="button"
+              className="secondary-button"
+              disabled={busy}
+              onClick={() => void captureCheckout(pendingCheckoutId)}
+            >
+              Retry confirmation
+            </button>}
+            <button
+              type="button"
+              className="paypal-cancel"
+              disabled={busy}
+              onClick={() => { setCheckoutOpen(false); setPendingCheckoutId(null); }}
+            >
+              Cancel checkout
+            </button>
+          </div>}
+          <small className="paypal-security-note">
+            PayPal processes the payment. Netbrowse Voice credits your wallet only after a completed payment is verified.
+          </small>
+        </>
+      )}
+      {billingMode === "postpaid" && <small className="paypal-security-note">Postpaid accounts use invoices rather than wallet top-ups.</small>}
+    </div>
+  );
+}
+
 function CustomerPortal({
   initialData,
   onLogout,
@@ -12923,7 +13387,7 @@ function CustomerPortal({
         </nav>
         <footer>
           <i className="online" />
-          Account active<small>{data.branding?.supportEmail || `${data.branding?.brandName ?? "Netbrowse Voice"} · 0.30.1`}</small>
+          Account active<small>{data.branding?.supportEmail || `${data.branding?.brandName ?? "Netbrowse Voice"} · 0.32.2`}</small>
         </footer>
       </aside>
       <main className="customer-portal-main">
@@ -13182,6 +13646,11 @@ function CustomerPortal({
             </div>
             <span className="secure-pill">IMMUTABLE</span>
           </div>
+          <PayPalWalletTopupPanel
+            currency={data.customer.currency}
+            billingMode={data.customer.billingMode}
+            onCredited={refreshPortal}
+          />
           {data.transactions.length === 0 ? (
             <div className="empty-state">
               <p>No wallet transactions yet.</p>
@@ -13408,7 +13877,7 @@ function Dashboard({
           <div className="core-status">
             <span /> Core online
           </div>
-          <small>Hackathon build · 0.30.1</small>
+          <small>Hackathon build · 0.32.2</small>
         </div>
       </aside>
 
@@ -13460,7 +13929,7 @@ function Dashboard({
         {active === "campaigns" && <Campaigns />}
         {active === "customers" && <Customers />}
         {active === "didstore" && <DidMarketplaceAdmin />}
-        {active === "billing" && <Billing />}
+        {active === "billing" && <Billing isOwner={data.user.role === "owner"} />}
         {active === "modules" && (
           <section className="panel modules-page">
             <div className="panel-head">

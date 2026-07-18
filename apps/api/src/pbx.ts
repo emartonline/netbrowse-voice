@@ -23,6 +23,7 @@ import {
   type AiReceptionistConfigRow,
 } from "./ai-receptionist.js";
 import {
+  renderAiQueueHandoffContexts,
   renderCallGroupRoutes,
   renderQueueConfig,
   type CallGroupConfigRow,
@@ -234,6 +235,7 @@ export function renderDialplanConfig(
   lines.push(...renderAiReceptionistRoutes(aiReceptionists));
   lines.push(...renderIvrInternalRoutes(ivrMenus));
   lines.push(...renderIvrContexts(ivrMenus, ivrOptions));
+  lines.push(...renderAiQueueHandoffContexts(callGroups));
   return `${lines.join("\n")}\n`;
 }
 

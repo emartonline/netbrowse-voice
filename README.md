@@ -14,7 +14,7 @@ authentication, module management and the event foundation. AI reception,
 campaign dialling, billing and contact-centre functions are
 installed as independent modules.
 
-The 0.30.1 hackathon release provides:
+The 0.32.2 hackathon release provides:
 
 - a first-run administrator setup flow;
 - a responsive operations dashboard;
@@ -52,7 +52,7 @@ The 0.30.1 hackathon release provides:
 - an OpenAI Realtime full-duplex AI Receptionist with caller interruption;
 - provider-selectable Google and ElevenLabs turn-based alternatives;
 - mandatory provider-generated natural AI disclosure, approved greetings and private caller audio;
-- bounded business-knowledge conversations with optional transcript storage;
+- business-knowledge conversations of up to 100 turns with optional transcript storage;
 - validated human handoff to an active PBX extension and internal test numbers;
 - a spoken conversation-limit notice followed by automatic transfer to the
   configured human handoff extension (or a polite close when no handoff exists);
@@ -60,7 +60,8 @@ The 0.30.1 hackathon release provides:
 - ring-all, round-robin and least-recent distribution with bounded wait, retry
   and agent wrap-up controls;
 - live member registration readiness, controlled fallback routing and AI
-  receptionist handoff to an enabled team destination;
+  receptionist handoff to an enabled team destination, with uninterrupted
+  music on hold when an AI call enters a queue;
 - a live queue supervision console with waiting callers, longest wait, answered,
   abandoned, average-hold and service-level statistics;
 - persistent per-queue agent sign-in, sign-out, pause, resume and pause-reason
@@ -104,6 +105,12 @@ The 0.30.1 hackathon release provides:
   plan allowance checks and atomic number allocation;
 - immediate prepaid wallet or postpaid credit charging, immutable purchase
   ledger entries and automatic monthly DID renewals;
+- PayPal sandbox-first prepaid wallet top-ups, with browser-safe public client
+  configuration, owner-only encrypted gateway settings in Billing, server-side
+  Orders API credentials and a verified capture before an immutable wallet
+  credit is written;
+- idempotent PayPal capture handling that binds every order, capture and wallet
+  transaction to the authenticated customer account;
 - automatic inbound-route suspension when renewal credit is unavailable and
   restoration after a successful renewal;
 - non-overlapping extension number ranges and tenant self-service provisioning
@@ -154,6 +161,60 @@ The 0.30.1 hackathon release provides:
 - deterministic file-based voicemail module selection on Ubuntu 26.04;
 - a hardened systemd service and Nginx configuration;
 - the initial module manifest SDK.
+
+## PayPal wallet top-ups
+
+PayPal is an optional **prepaid wallet top-up** method. It is intentionally not
+used for one-off DID checkout: customers add credit first, then the existing
+wallet rules purchase DIDs and pay for call usage. The browser receives only a
+public PayPal client ID. The PayPal secret remains in the root-owned server
+environment file, and Netbrowse Voice credits a wallet only after its server
+captures and verifies the exact PayPal payment amount and currency.
+
+The feature is disabled after installation. The organisation owner can open
+**Billing → PayPal Sandbox** and enter the Sandbox Client ID, secret and wallet
+top-up limits. The secret is AES-256-GCM encrypted before it is stored, is never
+shown again in the GUI, and is available only to the owner-controlled API. The
+server environment variables remain a headless fallback until those GUI settings
+are saved.
+
+An authorised PayPal Business account owner must supply sandbox credentials for
+a demo; this release deliberately keeps live payments unavailable. PayPal's
+standard Orders currency list does not include ZAR, so a ZAR wallet will
+correctly display as unavailable; use a PayPal-supported customer currency such
+as USD for the sandbox demo, or add a local payment gateway for ZAR later. See
+PayPal's [Orders API](https://developer.paypal.com/docs/api/orders/sdk/v2/) and
+[currency reference](https://developer.paypal.com/reference/currency-codes/).
+
+On the server, edit the environment file and then restart only the API:
+
+```bash
+cd ~
+sudoedit /etc/netbrowse-voice/netbrowse-voice.env
+```
+
+Add the sandbox values supplied by the authorised account owner:
+
+```text
+NBVOICE_PAYPAL_MODE=sandbox
+NBVOICE_PAYPAL_CLIENT_ID=your_sandbox_client_id
+NBVOICE_PAYPAL_CLIENT_SECRET=your_sandbox_client_secret
+NBVOICE_PAYPAL_MINIMUM_TOPUP=5
+NBVOICE_PAYPAL_MAXIMUM_TOPUP=10000
+```
+
+```bash
+cd ~
+sudo systemctl restart nbvoice-api
+sudo nbvoice status
+```
+
+Sign in as a **prepaid** customer whose account currency is supported by PayPal,
+open **Wallet ledger**, enter an amount and select **Continue to PayPal**. A
+successful sandbox capture creates one immutable `topup` ledger entry and
+updates the wallet balance. This hackathon scope does not yet include PayPal
+webhooks, refunds, disputes, subscriptions or automatic invoice collection;
+those must be added before treating it as a production payments deployment.
 
 ## Development installation
 

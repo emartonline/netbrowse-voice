@@ -1,25 +1,9 @@
-
-# Dependencies and builds
 node_modules/
 dist/
-coverage/
-
-# Environment files and credentials
 .env
-.env.*
-!.env.example
-!.env*.example
-*.pem
-*.key
-*.crt
-
-# Runtime and private data
+.npm-cache/
 *.log
-recordings/
-backups/
-uploads/
+*.tgz
+*.tsbuildinfo
+coverage/
 tmp/
-
-# Operating system files
-.DS_Store
-Thumbs.db

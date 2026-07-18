@@ -34,6 +34,9 @@ credentials or one another's data.
 6. Open **DID Store** and the customer **Buy numbers** view to demonstrate
    provider inventory, customer pricing, automatic routing and recurring DID
    billing.
+7. Optionally, sign in to a prepaid USD sandbox customer and open **Wallet
+   ledger** to show a PayPal top-up being captured and written to the immutable
+   wallet ledger.
 
 ## Technical architecture
 
@@ -60,6 +63,8 @@ flowchart TD
   have separate authorised workspaces.
 - Billing is designed into call records, rated calls, wallet controls, customer
   rate cards, invoices and recurring DID charges.
+- Optional PayPal sandbox top-ups verify a completed capture on the server
+  before a customer wallet is credited.
 - The project is deployable through one idempotent Ubuntu installation script.
 
 ## Security and privacy choices
@@ -70,6 +75,8 @@ flowchart TD
 - Provider costs, platform credentials and other customers remain private.
 - AI calls include a disclosure and bounded handoff behaviour.
 - Generated Asterisk configuration passes through a narrow validation helper.
+- PayPal credentials remain server-side; the wallet changes only after a
+  completed capture is checked against the local amount and currency.
 
 ## Fast demo script (about 3 minutes)
 
@@ -85,19 +92,21 @@ flowchart TD
 4. **1:50–2:30 — Operate it**
    Show call history, recordings and the customer/reseller separation.
 5. **2:30–3:00 — Commercial model**
-   Show the DID Store, customer marketplace and billing controls. End with the
-   one-command Ubuntu deployment story.
+   Show the DID Store, customer marketplace, wallet ledger and optional PayPal
+   sandbox top-up. Configure the credentials from the owner-only Billing panel,
+   then end with the one-command Ubuntu deployment story.
 
 ## Verification completed
 
-The 0.30.1 build has passed TypeScript checks, production web/API builds, 121 API
-tests and all installer helper tests. The installer checks Asterisk voicemail,
+The 0.32.2 build has passed TypeScript checks, production web/API builds, 128
+API tests and all installer helper tests. The installer checks Asterisk voicemail,
 recording, AudioSocket, queues, music on hold and PostgreSQL CDR support before
 it reports success.
 
 ## Roadmap after the hackathon
 
 - Customer DID cancellation, reassignment and porting workflow.
-- Payment gateway support for wallet top-ups and DID checkout.
+- Verified PayPal webhooks, refunds/dispute reconciliation and local payment
+  gateways for currencies not supported by PayPal Orders.
 - Metered or subscription-based AI receptionist billing.
 - Native iPhone and Android softphone applications.

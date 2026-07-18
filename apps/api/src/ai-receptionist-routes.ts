@@ -3,6 +3,7 @@ import { requireAdministrator } from "./auth.js";
 import { audit, pool } from "./database.js";
 import { applyPbxConfiguration, serializedPbxMutation } from "./pbx.js";
 import {
+  MAX_AI_RECEPTIONIST_TURNS,
   deleteElevenLabsAgent,
   provisionElevenLabsAgent,
   updateElevenLabsAgent,
@@ -247,8 +248,8 @@ async function validateAgent(
   if (knowledgeBase.length > 12000) {
     return { error: "Business knowledge cannot exceed 12,000 characters" };
   }
-  if (!Number.isInteger(maxTurns) || maxTurns < 1 || maxTurns > 6) {
-    return { error: "Maximum turns must be between 1 and 6" };
+  if (!Number.isInteger(maxTurns) || maxTurns < 1 || maxTurns > MAX_AI_RECEPTIONIST_TURNS) {
+    return { error: `Maximum turns must be between 1 and ${MAX_AI_RECEPTIONIST_TURNS}` };
   }
   if (!Number.isInteger(listenTimeoutSeconds) || listenTimeoutSeconds < 3 || listenTimeoutSeconds > 30) {
     return { error: "Listen timeout must be between 3 and 30 seconds" };

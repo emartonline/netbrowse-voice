@@ -143,7 +143,12 @@ write_valid_dialplan() {
     ' same => n,GotoIf($[${NBVOICE_IVR_ATTEMPTS}<3]?start:fallback)' \
     ' same => n(timeout),Goto(fallback)' \
     ' same => n(option-1),Goto(nbvoice-internal,1001,1)' \
-    ' same => n(fallback),Goto(nbvoice-internal,1001,1)' > "${DIALPLAN_SOURCE}"
+    ' same => n(fallback),Goto(nbvoice-internal,1001,1)' \
+    '' \
+    '[nbvoice-ai-queue-handoff]' \
+    'exten => 600,1,NoOp(Netbrowse Voice AI queue handoff 600)' \
+    ' same => n,StartMusicOnHold(default)' \
+    ' same => n,Goto(nbvoice-internal,600,1)' > "${DIALPLAN_SOURCE}"
 }
 
 write_valid_voicemail() {

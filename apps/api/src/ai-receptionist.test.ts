@@ -7,10 +7,12 @@ import {
   elevenLabsAgentPayload,
   elevenLabsConversationContext,
   googleAudioTurnPayload,
+  MAX_AI_RECEPTIONIST_TURNS,
   parseGoogleAudioTurnResponse,
   provisionElevenLabsAgent,
   requestElevenLabsTranscript,
   renderAiReceptionistRoutes,
+  usesQueueHandoffMusic,
 } from "./ai-receptionist.js";
 import {
   naturalAiDisclosureRequest,
@@ -69,6 +71,22 @@ test("AI route renderer uses a protected natural disclosure when generated", () 
   }]).join("\n");
   assert.match(output, /Playback\(netbrowse\/nbvs-ai-disclosure-48c577ef\)/);
   assert.doesNotMatch(output, /nbvai-disclosure-local/);
+});
+
+test("only queue handoffs begin music before a transfer", () => {
+  assert.equal(MAX_AI_RECEPTIONIST_TURNS, 100);
+  assert.equal(usesQueueHandoffMusic({
+    handoff_destination_type: "call_group",
+    handoff_group_type: "queue",
+  }), true);
+  assert.equal(usesQueueHandoffMusic({
+    handoff_destination_type: "call_group",
+    handoff_group_type: "ring_group",
+  }), false);
+  assert.equal(usesQueueHandoffMusic({
+    handoff_destination_type: "extension",
+    handoff_group_type: null,
+  }), false);
 });
 
 test("natural disclosure generation uses fixed wording and the selected voice", () => {

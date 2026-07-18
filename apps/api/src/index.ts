@@ -37,6 +37,8 @@ import {
   registerBrandingRoutes,
 } from "./branding-routes.js";
 import { registerDidMarketplaceRoutes } from "./did-marketplace-routes.js";
+import { registerPayPalRoutes } from "./paypal-routes.js";
+import { registerPayPalSettingsRoutes } from "./paypal-settings-routes.js";
 import {
   startDidRenewalWorker,
   stopDidRenewalWorker,
@@ -89,6 +91,8 @@ registerInvoiceRoutes(app);
 registerResellerRoutes(app);
 registerBrandingRoutes(app);
 registerDidMarketplaceRoutes(app);
+registerPayPalRoutes(app);
+registerPayPalSettingsRoutes(app);
 
 let aiFastAgiServer: Server | undefined;
 let aiAudioSocketServer: Server | undefined;

@@ -138,3 +138,24 @@ export function renderCallGroupRoutes(
   }
   return lines;
 }
+
+/**
+ * The OpenAI realtime engine uses Asterisk's channel redirect command for a
+ * handoff. A redirect cannot run an application first, so queue destinations
+ * get this narrow, generated staging context. It begins the same default MOH
+ * class as Queue() before returning to the normal internal route.
+ */
+export function renderAiQueueHandoffContexts(groups: CallGroupConfigRow[]): string[] {
+  const queues = groups.filter((group) => group.enabled && group.group_type === "queue");
+  if (queues.length === 0) return [];
+  const lines = ["[nbvoice-ai-queue-handoff]"];
+  for (const queue of queues) {
+    lines.push(
+      `exten => ${queue.extension_number},1,NoOp(Netbrowse Voice AI queue handoff ${queue.extension_number})`,
+      " same => n,StartMusicOnHold(default)",
+      ` same => n,Goto(nbvoice-internal,${queue.extension_number},1)`,
+      "",
+    );
+  }
+  return lines;
+}

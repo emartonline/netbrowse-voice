@@ -41,6 +41,7 @@ const ELEVENLABS_ACTIVITY_INTERVAL_MS = 3_000;
 const ELEVENLABS_RESPONSE_TIMEOUT_MS = 12_000;
 const LOCAL_DISCLOSURE_SOUND = "netbrowse/nbvai-disclosure-local";
 const LOCAL_UNAVAILABLE_SOUND = "netbrowse/nbvai-unavailable-local";
+export const MAX_AI_RECEPTIONIST_TURNS = 100;
 const execFileAsync = promisify(execFile);
 
 export type AiProvider = "openai" | "google" | "elevenlabs";
@@ -63,6 +64,8 @@ interface RuntimeAgentRow extends AiReceptionistConfigRow {
   system_prompt: string;
   knowledge_base: string;
   handoff_extension_number: string | null;
+  handoff_destination_type: "extension" | "call_group";
+  handoff_group_type: "ring_group" | "queue" | null;
   max_turns: number;
   listen_timeout_seconds: number;
   store_transcripts: boolean;
@@ -728,6 +731,8 @@ async function runtimeAgent(id: string): Promise<RuntimeAgentRow | undefined> {
             agents.system_prompt, agents.knowledge_base,
             COALESCE(handoff.extension_number, handoff_group.extension_number)
               AS handoff_extension_number,
+            agents.handoff_destination_type,
+            handoff_group.group_type AS handoff_group_type,
             agents.max_turns, agents.listen_timeout_seconds, agents.store_transcripts
        FROM ai_receptionists AS agents
        JOIN sound_assets AS sounds ON sounds.id = agents.greeting_sound_asset_id
@@ -737,6 +742,13 @@ async function runtimeAgent(id: string): Promise<RuntimeAgentRow | undefined> {
     [id],
   );
   return result.rows[0];
+}
+
+export function usesQueueHandoffMusic(value: {
+  handoff_destination_type: "extension" | "call_group";
+  handoff_group_type: "ring_group" | "queue" | null;
+}): boolean {
+  return value.handoff_destination_type === "call_group" && value.handoff_group_type === "queue";
 }
 
 async function updateSession(
@@ -766,6 +778,9 @@ async function updateSession(
 
 async function transferOrEnd(agi: AgiConnection, agent: RuntimeAgentRow): Promise<boolean> {
   if (!agent.handoff_extension_number) return false;
+  if (usesQueueHandoffMusic(agent)) {
+    await agi.command("EXEC StartMusicOnHold default");
+  }
   await agi.command(`EXEC Goto nbvoice-internal,${agent.handoff_extension_number},1`);
   return true;
 }
@@ -977,13 +992,18 @@ function consumeOpenAiStream(id: string): PendingOpenAiStream | undefined {
   return registration;
 }
 
-async function requestAsteriskRedirect(channel: string | null, extension: string): Promise<boolean> {
+async function requestAsteriskRedirect(
+  channel: string | null,
+  extension: string,
+  startMusicOnHold = false,
+): Promise<boolean> {
   if (!channel || !/^[A-Za-z0-9_@./:+-]{1,160}$/.test(channel) || !/^[0-9]{2,8}$/.test(extension)) {
     return false;
   }
   await mkdir(config.asteriskRedirectRequestDir, { recursive: true, mode: 0o770 });
   const requestFile = path.join(config.asteriskRedirectRequestDir, `${randomUUID()}.request`);
-  await writeFile(requestFile, `${channel}|${extension}\n`, { mode: 0o600, flag: "wx" });
+  const handoffMode = startMusicOnHold ? "|moh" : "";
+  await writeFile(requestFile, `${channel}|${extension}${handoffMode}\n`, { mode: 0o600, flag: "wx" });
   try {
     await execFileAsync(
       config.asteriskRedirectCommand,
@@ -1016,12 +1036,16 @@ async function startOpenAiAudioCall(
   );
   const call = new OpenAiRealtimeCall(socket, apiKey, agent, {
     transfer: () => agent.handoff_extension_number
-      ? requestAsteriskRedirect(registration.channel, agent.handoff_extension_number)
+      ? requestAsteriskRedirect(
+        registration.channel,
+        agent.handoff_extension_number,
+        usesQueueHandoffMusic(agent),
+      )
       : Promise.resolve(false),
     finish: async (result) => {
       await updateSession(sessionId, {
         status: result.status,
-        turnCount: Math.min(result.turnCount, 6),
+        turnCount: Math.min(result.turnCount, MAX_AI_RECEPTIONIST_TURNS),
         transcript: result.transcript,
         storeTranscripts: agent.store_transcripts,
         errorCode: result.errorCode,

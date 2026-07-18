@@ -193,6 +193,24 @@ export async function requireAdministrator(
   return user;
 }
 
+/**
+ * Payment gateway credentials belong to the organisation owner rather than
+ * general PBX administrators.  This keeps a delegated administrator from
+ * changing the merchant account that receives customer funds.
+ */
+export async function requireOwner(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<AuthenticatedUser | null> {
+  const user = await requireUser(request, reply);
+  if (!user) return null;
+  if (user.role !== "owner") {
+    await reply.code(403).send({ error: "Owner access required" });
+    return null;
+  }
+  return user;
+}
+
 export async function requireAgent(
   request: FastifyRequest,
   reply: FastifyReply,

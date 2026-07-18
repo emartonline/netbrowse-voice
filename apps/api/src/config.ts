@@ -3,10 +3,23 @@ function integer(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function money(value: string | undefined, fallback: number): number {
+  const parsed = Number(value ?? "");
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1_000_000) {
+    return fallback;
+  }
+  return Math.round(parsed * 100) / 100;
+}
+
 const nodeEnv = process.env.NODE_ENV ?? "development";
+const paypalMinimumTopup = money(process.env.NBVOICE_PAYPAL_MINIMUM_TOPUP, 5);
+const paypalMaximumTopup = Math.max(
+  paypalMinimumTopup,
+  money(process.env.NBVOICE_PAYPAL_MAXIMUM_TOPUP, 10_000),
+);
 
 export const config = {
-  version: "0.30.1",
+  version: "0.32.2",
   nodeEnv,
   host: process.env.HOST ?? "127.0.0.1",
   port: integer(process.env.PORT, 3100),
@@ -75,4 +88,11 @@ export const config = {
     process.env.NBVOICE_ASTERISK_CAMPAIGN_SUBMIT_HELPER ??
     "/usr/local/libexec/nbvoice-asterisk-campaign-submit",
   ffmpegCommand: process.env.NBVOICE_FFMPEG_COMMAND ?? "/usr/bin/ffmpeg",
+  paypal: {
+    mode: process.env.NBVOICE_PAYPAL_MODE === "live" ? "live" as const : "sandbox" as const,
+    clientId: process.env.NBVOICE_PAYPAL_CLIENT_ID?.trim() ?? "",
+    clientSecret: process.env.NBVOICE_PAYPAL_CLIENT_SECRET?.trim() ?? "",
+    minimumTopup: paypalMinimumTopup,
+    maximumTopup: paypalMaximumTopup,
+  },
 };

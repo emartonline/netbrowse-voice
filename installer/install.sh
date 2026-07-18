@@ -10,7 +10,7 @@ CONFIG_ROOT="/etc/netbrowse-voice"
 ENV_FILE="${CONFIG_ROOT}/netbrowse-voice.env"
 STATE_ROOT="/var/lib/netbrowse-voice"
 CACHE_ROOT="/var/cache/netbrowse-voice"
-VERSION="0.30.1"
+VERSION="0.32.2"
 
 apply_application_permissions() {
   chown -R root:nbvoice /opt/netbrowse-voice
@@ -174,10 +174,28 @@ else
     printf 'NBVOICE_INSTALL_SECRET=%s\n' "${INSTALL_SECRET}"
     printf 'NBVOICE_DATA_KEY=%s\n' "$(random_hex 32)"
     printf 'NBVOICE_SOUND_DIR=%s\n' "${DISCOVERED_SOUND_ROOT}"
+    printf '\n# Optional headless fallback for PayPal wallet top-ups.\n'
+    printf '# The owner can securely configure Sandbox credentials in Billing → PayPal Sandbox.\n'
+    printf 'NBVOICE_PAYPAL_MODE=sandbox\n'
+    printf 'NBVOICE_PAYPAL_CLIENT_ID=\n'
+    printf 'NBVOICE_PAYPAL_CLIENT_SECRET=\n'
+    printf 'NBVOICE_PAYPAL_MINIMUM_TOPUP=5\n'
+    printf 'NBVOICE_PAYPAL_MAXIMUM_TOPUP=10000\n'
   } > "${ENV_FILE}"
   SOUND_ROOT="${DISCOVERED_SOUND_ROOT}"
   chown root:nbvoice "${ENV_FILE}"
   chmod 0640 "${ENV_FILE}"
+fi
+if ! grep -q '^NBVOICE_PAYPAL_MODE=' "${ENV_FILE}"; then
+  {
+    printf '\n# Optional headless fallback for PayPal wallet top-ups.\n'
+    printf '# The owner can securely configure Sandbox credentials in Billing → PayPal Sandbox.\n'
+    printf 'NBVOICE_PAYPAL_MODE=sandbox\n'
+    printf 'NBVOICE_PAYPAL_CLIENT_ID=\n'
+    printf 'NBVOICE_PAYPAL_CLIENT_SECRET=\n'
+    printf 'NBVOICE_PAYPAL_MINIMUM_TOPUP=5\n'
+    printf 'NBVOICE_PAYPAL_MAXIMUM_TOPUP=10000\n'
+  } >> "${ENV_FILE}"
 fi
 valid_asterisk_data_dir "${SOUND_ROOT}" || \
   fail "Netbrowse Voice sound directory is unsafe: ${SOUND_ROOT}"
@@ -347,6 +365,14 @@ PGPASSWORD="${DB_PASSWORD}" psql \
   "postgresql://nbvoice:${DB_PASSWORD}@127.0.0.1:5432/netbrowse_voice" \
   -v ON_ERROR_STOP=1 \
   -f "${APP_ROOT}/database/migrations/035_did_marketplace.sql"
+PGPASSWORD="${DB_PASSWORD}" psql \
+  "postgresql://nbvoice:${DB_PASSWORD}@127.0.0.1:5432/netbrowse_voice" \
+  -v ON_ERROR_STOP=1 \
+  -f "${APP_ROOT}/database/migrations/036_paypal_wallet_topups.sql"
+PGPASSWORD="${DB_PASSWORD}" psql \
+  "postgresql://nbvoice:${DB_PASSWORD}@127.0.0.1:5432/netbrowse_voice" \
+  -v ON_ERROR_STOP=1 \
+  -f "${APP_ROOT}/database/migrations/037_paypal_gui_settings.sql"
 
 log "Preparing the controlled campaign call outbox"
 install -d -m 0770 -o nbvoice -g nbvoice "${STATE_ROOT}/campaign-outbox"
