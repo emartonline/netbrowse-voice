@@ -1,0 +1,17 @@
+Netbrowse Voice
+Copyright 2026 Netbrowse Media (PTY) LTD
+
+The Netbrowse Voice Community Edition, including the source code authored for
+this repository, is licensed under the GNU General Public License, version 3
+or (at your option) any later version. See [LICENSE](LICENSE).
+
+This repository depends on, or installs, third-party software and media that
+remain subject to their respective licenses. In particular, the installer
+obtains Asterisk and optional sound packages from the operating system package
+manager; those components are not relicensed by Netbrowse Media (PTY) LTD.
+Deployers are responsible for reviewing and complying with the applicable
+upstream package, media, API-provider and distribution terms.
+
+“Netbrowse Voice”, “Netbrowse Media”, associated logos and product branding
+are names and brand identifiers of Netbrowse Media (PTY) LTD. The GPL licence
+does not grant trademark rights. See [TRADEMARKS.md](TRADEMARKS.md).

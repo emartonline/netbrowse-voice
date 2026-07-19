@@ -67,6 +67,19 @@ flowchart TD
   before a customer wallet is credited.
 - The project is deployable through one idempotent Ubuntu installation script.
 
+## Open-source Community Edition
+
+The Community Edition source submitted with this release is under the
+[GNU GPL v3 or later](LICENSE). It includes the PBX, AI voice, customer,
+reseller, billing and installation functionality demonstrated here. The source
+is public so operators and contributors can inspect, run and improve it.
+
+Netbrowse Media (PTY) LTD may later offer independent commercial products or
+hosted services, but no proprietary component is required for the demonstrated
+Community Edition. Product names and logos are not granted by the GPL; see
+[TRADEMARKS.md](TRADEMARKS.md). The future separation approach is described in
+[docs/plugin-licensing.md](docs/plugin-licensing.md).
+
 ## Security and privacy choices
 
 - SIP and provider secrets are encrypted at rest.
@@ -83,22 +96,28 @@ flowchart TD
 1. **0:00–0:20 — Problem and dashboard**
    Explain that the platform unifies PBX, AI voice and customer operations.
    Show the health dashboard and the Quick Launch journey.
-2. **0:20–1:10 — A real call**
+2. **0:20–0:40 — How it was built**
+   Show the README's **Built with Codex and GPT-5.6** section or a concise
+   development view. Explain that Codex accelerated implementation, testing
+   and clean-server deployment while product decisions stayed human-directed.
+3. **0:40–1:15 — A real call**
    Call an extension or the AI receptionist from a registered softphone. Show
    the AI response or IVR, then the live-call view.
-3. **1:10–1:50 — Build a voice flow**
+4. **1:15–1:50 — Build a voice flow**
    Show a generated Sound Studio announcement and the IVR or receptionist that
    uses it.
-4. **1:50–2:30 — Operate it**
+5. **1:50–2:25 — Operate it**
    Show call history, recordings and the customer/reseller separation.
-5. **2:30–3:00 — Commercial model**
-   Show the DID Store, customer marketplace, wallet ledger and optional PayPal
-   sandbox top-up. Configure the credentials from the owner-only Billing panel,
-   then end with the one-command Ubuntu deployment story.
+6. **2:25–2:50 — Commercial model**
+   Show the DID Store, customer marketplace and wallet ledger. Do not show live
+   credentials, real customer data or third-party payment screens in the video.
+7. **2:50–3:00 — Close**
+   End with the clean Ubuntu installation and the outcome: one deployable
+   platform for live calling, AI voice and customer operations.
 
 ## Verification completed
 
-The 0.32.4 build has passed TypeScript checks, production web/API builds, 129
+The 0.32.5 build has passed TypeScript checks, production web/API builds, 129
 API tests and all installer helper tests. The installer checks Asterisk voicemail,
 recording, AudioSocket, queues, music on hold and PostgreSQL CDR support before
 it reports success.
@@ -110,3 +129,5 @@ it reports success.
   gateways for currencies not supported by PayPal Orders.
 - Metered or subscription-based AI receptionist billing.
 - Native iPhone and Android softphone applications.
+- Optional independently deployed commercial modules and managed services, with
+  their licensing boundary reviewed before release.

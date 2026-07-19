@@ -4,26 +4,26 @@ This development release is validated on a fresh **Ubuntu Server 26.04
 (amd64)** machine. Run it as a sudo-enabled user on the server where Netbrowse
 Voice will run.
 
-## Install v0.32.4
+## Install v0.32.5
 
 ```bash
 cd ~
 sudo apt-get update
 sudo apt-get install -y wget
 
-wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.4/netbrowse-voice-0.32.4.tar.gz
-wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.4/netbrowse-voice-0.32.4.tar.gz.sha256
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.5/netbrowse-voice-0.32.5.tar.gz
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.5/netbrowse-voice-0.32.5.tar.gz.sha256
 
-sha256sum -c netbrowse-voice-0.32.4.tar.gz.sha256
-tar -xzf netbrowse-voice-0.32.4.tar.gz
-cd ~/netbrowse-voice-0.32.4
+sha256sum -c netbrowse-voice-0.32.5.tar.gz.sha256
+tar -xzf netbrowse-voice-0.32.5.tar.gz
+cd ~/netbrowse-voice-0.32.5
 sudo bash installer/install.sh
 ```
 
 The checksum command must report:
 
 ```text
-netbrowse-voice-0.32.4.tar.gz: OK
+netbrowse-voice-0.32.5.tar.gz: OK
 ```
 
 When the installer finishes, open the `http://` address it prints and create
