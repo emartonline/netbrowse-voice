@@ -169,7 +169,9 @@ export function openAiRealtimeSessionUpdate(agent: OpenAiRealtimeAgent) {
       model: OPENAI_REALTIME_MODEL,
       output_modalities: ["audio"],
       instructions: openAiRealtimePrompt(agent),
-      max_output_tokens: 300,
+      // Do not impose the former 300-token cap, which could end longer spoken
+      // answers mid-sentence. The provider still enforces the model's maximum.
+      max_output_tokens: "inf" as const,
       audio: {
         input: {
           format: { type: "audio/pcmu" },

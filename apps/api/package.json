@@ -1,6 +1,6 @@
 {
   "name": "@netbrowse-voice/api",
-  "version": "0.32.5",
+  "version": "0.32.6",
   "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",

@@ -3,7 +3,7 @@
 ## Supported versions
 
 Security fixes are evaluated for the current public release and the default
-branch. At the time of writing, the current release line is **v0.32.5**.
+branch. At the time of writing, the current release line is **v0.32.6**.
 
 ## Reporting a vulnerability
 

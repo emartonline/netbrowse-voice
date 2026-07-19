@@ -10,7 +10,7 @@ CONFIG_ROOT="/etc/netbrowse-voice"
 ENV_FILE="${CONFIG_ROOT}/netbrowse-voice.env"
 STATE_ROOT="/var/lib/netbrowse-voice"
 CACHE_ROOT="/var/cache/netbrowse-voice"
-VERSION="0.32.5"
+VERSION="0.32.6"
 
 apply_application_permissions() {
   chown -R root:nbvoice /opt/netbrowse-voice
