@@ -11095,7 +11095,7 @@ function AiReceptionist() {
                 </small>
               </label>
               <label>
-                <span>Idle prompt timeout</span>
+                <span>Caller silence check</span>
                 <select
                   value={draft.listenTimeoutSeconds}
                   onChange={(event) =>
@@ -11111,6 +11111,10 @@ function AiReceptionist() {
                     </option>
                   ))}
                 </select>
+                <small>
+                  This starts only after the AI finishes speaking. It does not
+                  limit the length of the AI's answer.
+                </small>
               </label>
             </div>
             <label className="toggle-field">
@@ -11721,7 +11725,7 @@ function AgentWorkspace({
             }
           />
           {registrationLabel}
-          <small>Community Edition · 0.32.5</small>
+          <small>Community Edition · 0.32.6</small>
         </footer>
       </aside>
       <main className="agent-workspace-main">
@@ -13408,7 +13412,7 @@ function CustomerPortal({
         </nav>
         <footer>
           <i className="online" />
-          Account active<small>{data.branding?.supportEmail || `${data.branding?.brandName ?? "Netbrowse Voice"} · 0.32.5`}</small>
+          Account active<small>{data.branding?.supportEmail || `${data.branding?.brandName ?? "Netbrowse Voice"} · 0.32.6`}</small>
         </footer>
       </aside>
       <main className="customer-portal-main">
@@ -13898,7 +13902,7 @@ function Dashboard({
           <div className="core-status">
             <span /> Core online
           </div>
-          <small>Community Edition · 0.32.5</small>
+          <small>Community Edition · 0.32.6</small>
         </div>
       </aside>
 

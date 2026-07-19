@@ -19,7 +19,7 @@ const paypalMaximumTopup = Math.max(
 );
 
 export const config = {
-  version: "0.32.5",
+  version: "0.32.6",
   nodeEnv,
   host: process.env.HOST ?? "127.0.0.1",
   port: integer(process.env.PORT, 3100),

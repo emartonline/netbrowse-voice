@@ -58,6 +58,8 @@ test("OpenAI Realtime session uses direct PCMU streaming, server VAD and handoff
   assert.equal(event.session.audio.output.voice, "marin");
   assert.equal(event.session.audio.input.turn_detection.create_response, true);
   assert.equal(event.session.audio.input.turn_detection.interrupt_response, true);
+  assert.equal(event.session.audio.input.turn_detection.idle_timeout_ms, 12_000);
+  assert.equal(event.session.max_output_tokens, "inf");
   assert.equal(event.session.tools[0]?.name, "transfer_to_human");
 });
 

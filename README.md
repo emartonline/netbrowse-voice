@@ -13,7 +13,7 @@ For a verified Ubuntu installation from a GitHub release asset, see
 
 Maintainers can create a clean public archive and matching checksum with
 [scripts/create-release-archive.sh](scripts/create-release-archive.sh). The
-current release notes are in [docs/release-v0.32.5.md](docs/release-v0.32.5.md).
+current release notes are in [docs/release-v0.32.6.md](docs/release-v0.32.6.md).
 
 ## Community Edition, licensing and trademarks
 
@@ -50,7 +50,7 @@ authentication, module management and the event foundation. AI reception,
 campaign dialling, billing and contact-centre functions are
 installed as independent modules.
 
-The 0.32.5 Community Edition release provides:
+The 0.32.6 Community Edition release provides:
 
 - a first-run administrator setup flow;
 - a responsive operations dashboard;

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="0.32.5"
+VERSION="0.32.6"
 
 usage() {
   printf '%s\n' \

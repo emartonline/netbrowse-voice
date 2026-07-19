@@ -77,7 +77,7 @@ PayPal credentials or a server console.
 
 ### Installable test build
 
-Also provide the public GitHub repository and the v0.32.5 GitHub Release. The
+Also provide the public GitHub repository and the v0.32.6 GitHub Release. The
 release archive, checksum and [INSTALL.md](../INSTALL.md) let a judge install
 the platform on a clean Ubuntu 26.04 amd64 server without rebuilding the code.
 
@@ -85,11 +85,11 @@ the platform on a clean Ubuntu 26.04 amd64 server without rebuilding the code.
 cd ~
 sudo apt-get update
 sudo apt-get install -y wget
-wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.5/netbrowse-voice-0.32.5.tar.gz
-wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.5/netbrowse-voice-0.32.5.tar.gz.sha256
-sha256sum -c netbrowse-voice-0.32.5.tar.gz.sha256
-tar -xzf netbrowse-voice-0.32.5.tar.gz
-cd ~/netbrowse-voice-0.32.5
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.6/netbrowse-voice-0.32.6.tar.gz
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.6/netbrowse-voice-0.32.6.tar.gz.sha256
+sha256sum -c netbrowse-voice-0.32.6.tar.gz.sha256
+tar -xzf netbrowse-voice-0.32.6.tar.gz
+cd ~/netbrowse-voice-0.32.6
 sudo bash installer/install.sh
 ```
 
@@ -101,7 +101,7 @@ sudo bash installer/install.sh
 - [ ] Confirm [NOTICE](../NOTICE), [TRADEMARKS.md](../TRADEMARKS.md),
   [SECURITY.md](../SECURITY.md) and [CONTRIBUTING.md](../CONTRIBUTING.md) are
   visible in the default branch.
-- [ ] Confirm the v0.32.5 GitHub Release includes both the `.tar.gz` archive and
+- [ ] Confirm the v0.32.6 GitHub Release includes both the `.tar.gz` archive and
   its `.sha256` file.
 - [ ] Confirm [README.md](../README.md) includes the **Built with Codex and
   GPT-5.6** section and links to the installation instructions.

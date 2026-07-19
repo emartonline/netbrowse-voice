@@ -117,7 +117,7 @@ Community Edition. Product names and logos are not granted by the GPL; see
 
 ## Verification completed
 
-The 0.32.5 build has passed TypeScript checks, production web/API builds, 129
+The 0.32.6 build has passed TypeScript checks, production web/API builds, 129
 API tests and all installer helper tests. The installer checks Asterisk voicemail,
 recording, AudioSocket, queues, music on hold and PostgreSQL CDR support before
 it reports success.
