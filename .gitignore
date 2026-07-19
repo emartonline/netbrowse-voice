@@ -1,9 +1,28 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
 .npm-cache/
 *.log
 *.tgz
 *.tsbuildinfo
 coverage/
 tmp/
+
+# Credentials and certificates must stay out of source control.
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Runtime data can contain customer data, audio or database exports.
+recordings/
+uploads/
+backups/
+storage/
+release/
+*.dump
+*.sql.gz

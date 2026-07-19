@@ -11,13 +11,46 @@ walkthrough, architecture overview and judging notes in
 For a verified Ubuntu installation from a GitHub release asset, see
 [INSTALL.md](INSTALL.md).
 
+Maintainers can create a clean public archive and matching checksum with
+[scripts/create-release-archive.sh](scripts/create-release-archive.sh). The
+current release notes are in [docs/release-v0.32.5.md](docs/release-v0.32.5.md).
+
+## Community Edition, licensing and trademarks
+
+Netbrowse Voice source and release archives that contain this notice are the
+**Community Edition**, licensed under **GNU GPL v3 or later**
+([LICENSE](LICENSE)). That includes the current PBX, AI, billing, reseller,
+installer and web-interface functionality in this repository.
+
+You may run, study, change and redistribute the Community Edition under the
+GPL. If you distribute a modified version, the GPL's corresponding-source and
+copyleft requirements apply. The licence does **not** grant rights to use
+Netbrowse Media (PTY) LTD or Netbrowse Voice names, logos or product identity
+to imply an official release, endorsement or affiliation. See
+[TRADEMARKS.md](TRADEMARKS.md).
+
+Future independent commercial products may be released separately, but none is
+required to use the current Community Edition. Any future proprietary component
+must remain genuinely separate from GPL-covered code and be reviewed before
+release; see [COMMUNITY_EDITION.md](COMMUNITY_EDITION.md) and
+[docs/plugin-licensing.md](docs/plugin-licensing.md). This is a project policy,
+not legal advice.
+
+Earlier releases that were distributed under a different licence keep the
+rights already granted for those copies. See
+[LICENSE-TRANSITION.md](LICENSE-TRANSITION.md).
+
+To contribute safely, see [CONTRIBUTING.md](CONTRIBUTING.md). To report a
+security issue without publishing credentials or exploit details, see
+[SECURITY.md](SECURITY.md).
+
 Netbrowse Voice is a modular PBX and intelligent communications platform built
 around Asterisk. The Core provides extensions, trunks, routing, health,
 authentication, module management and the event foundation. AI reception,
 campaign dialling, billing and contact-centre functions are
 installed as independent modules.
 
-The 0.32.4 hackathon release provides:
+The 0.32.5 Community Edition release provides:
 
 - a first-run administrator setup flow;
 - a responsive operations dashboard;
@@ -168,6 +201,31 @@ The 0.32.4 hackathon release provides:
 - deterministic file-based voicemail module selection on Ubuntu 26.04;
 - a hardened systemd service and Nginx configuration;
 - the initial module manifest SDK.
+
+## Built with Codex and GPT-5.6
+
+Netbrowse Voice was developed through a human-directed, iterative collaboration
+with Codex using GPT-5.6. Product direction remained with the project owner:
+the target users, modular PBX scope, customer and reseller model, commercial
+workflow, and what constituted a useful live demonstration were chosen and
+reviewed throughout the build.
+
+Codex accelerated the engineering work by helping turn those decisions into a
+working TypeScript application, PostgreSQL migrations, Asterisk configuration
+generators, an Ubuntu installer, regression tests and a cohesive web interface.
+It was particularly useful for tracing real deployment failures across clean
+Ubuntu machines, including SIP registration interoperability, Asterisk module
+readiness, Nginx access permissions and production runtime dependencies.
+
+GPT-5.6 supported rapid iteration across the full stack: proposing bounded
+implementations, reviewing integration points, generating focused tests and
+documentation, and refining the demo flow. Each change was validated against
+the running PBX, the production build, the API test suite and installer helper
+tests rather than being presented as a conceptual prototype.
+
+See [HACKATHON.md](HACKATHON.md) for the product brief and
+[docs/hackathon-submission.md](docs/hackathon-submission.md) for the final
+submission checklist and three-minute demo runbook.
 
 ## PayPal wallet top-ups
 
