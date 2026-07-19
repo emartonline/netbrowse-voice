@@ -1,20 +1,42 @@
-```bash
-cd ~
-wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.3/netbrowse-voice-0.32.3.tar.gz
-sha256sum netbrowse-voice-0.32.3.tar.gz
-```
+# Install Netbrowse Voice
 
-The command must return this exact checksum:
+This development release is validated on a fresh **Ubuntu Server 26.04
+(amd64)** machine. Run it as a sudo-enabled user on the server where Netbrowse
+Voice will run.
 
-```text
-fd3575b3c3b7429d9ddc76ca47e03ee61ad9e319dfb21baaa83f820e493912f4
-```
-
-If it matches, continue:
+## Install v0.32.4
 
 ```bash
 cd ~
-tar -xzf netbrowse-voice-0.32.3.tar.gz
-cd ~/netbrowse-voice-0.32.3
+sudo apt-get update
+sudo apt-get install -y wget
+
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.4/netbrowse-voice-0.32.4.tar.gz
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.4/netbrowse-voice-0.32.4.tar.gz.sha256
+
+sha256sum -c netbrowse-voice-0.32.4.tar.gz.sha256
+tar -xzf netbrowse-voice-0.32.4.tar.gz
+cd ~/netbrowse-voice-0.32.4
 sudo bash installer/install.sh
 ```
+
+The checksum command must report:
+
+```text
+netbrowse-voice-0.32.4.tar.gz: OK
+```
+
+When the installer finishes, open the `http://` address it prints and create
+the first administrator account. Check the services at any time with:
+
+```bash
+cd ~
+sudo nbvoice status
+```
+
+## Notes
+
+- The installer creates a 4 GB swap file only when swap is not already enabled.
+- It installs and configures Asterisk, PostgreSQL, Redis, Nginx and the
+  Netbrowse Voice service.
+- Do not run the installer from inside the `.tar.gz` file; extract it first.

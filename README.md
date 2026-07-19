@@ -8,13 +8,16 @@ server. The project is prepared for hackathon demonstration with a focused
 walkthrough, architecture overview and judging notes in
 [HACKATHON.md](HACKATHON.md).
 
+For a verified Ubuntu installation from a GitHub release asset, see
+[INSTALL.md](INSTALL.md).
+
 Netbrowse Voice is a modular PBX and intelligent communications platform built
 around Asterisk. The Core provides extensions, trunks, routing, health,
 authentication, module management and the event foundation. AI reception,
 campaign dialling, billing and contact-centre functions are
 installed as independent modules.
 
-The 0.32.3 hackathon release provides:
+The 0.32.4 hackathon release provides:
 
 - a first-run administrator setup flow;
 - a responsive operations dashboard;
@@ -29,6 +32,8 @@ The 0.32.3 hackathon release provides:
   registration, or trusted source IP authentication;
 - optional registration Contact-header usernames for provider interoperability,
   including Callcentric;
+- clean Ubuntu deployment checks that wait for the PostgreSQL CDR backend and
+  retain the API runtime dependencies after the production build;
 - UDP/TCP provider transport, optional SIP From identity, multiple trusted
   inbound networks and encrypted provider secrets;
 - per-trunk E.164 plus removal and carrier dial-prefix preparation for the
@@ -220,18 +225,12 @@ those must be added before treating it as a production payments deployment.
 
 ## Development installation
 
-## Install on Ubuntu 26.04
-
-Download the two files from the **Assets** section below, then run:
+Copy the release archive to a clean Ubuntu VM, extract it, and run:
 
 ```bash
 cd ~
-wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.3/netbrowse-voice-0.32.3.tar.gz
-wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.3/netbrowse-voice-0.32.3.tar.gz.sha256
-sha256sum -c netbrowse-voice-0.32.3.tar.gz.sha256
-tar -xzf netbrowse-voice-0.32.3.tar.gz
-cd ~/netbrowse-voice-0.32.3
 sudo bash installer/install.sh
+```
 
 The installer is intentionally idempotent. Running it again updates the source,
 rebuilds the applications, reruns safe migrations and restarts the services.
