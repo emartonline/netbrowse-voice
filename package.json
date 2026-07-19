@@ -1,6 +1,6 @@
 {
   "name": "netbrowse-voice",
-  "version": "0.32.3",
+  "version": "0.32.4",
   "private": true,
   "description": "Netbrowse Voice modular PBX and intelligent communications platform",
   "workspaces": [

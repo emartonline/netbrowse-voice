@@ -10,7 +10,7 @@ CONFIG_ROOT="/etc/netbrowse-voice"
 ENV_FILE="${CONFIG_ROOT}/netbrowse-voice.env"
 STATE_ROOT="/var/lib/netbrowse-voice"
 CACHE_ROOT="/var/cache/netbrowse-voice"
-VERSION="0.32.3"
+VERSION="0.32.4"
 
 apply_application_permissions() {
   chown -R root:nbvoice /opt/netbrowse-voice
@@ -32,6 +32,8 @@ source "${SCRIPT_DIR}/lib/asterisk-cdr.sh"
 source "${SCRIPT_DIR}/lib/asterisk-paths.sh"
 # shellcheck source=lib/asterisk-moh.sh
 source "${SCRIPT_DIR}/lib/asterisk-moh.sh"
+# shellcheck source=lib/asterisk-runtime.sh
+source "${SCRIPT_DIR}/lib/asterisk-runtime.sh"
 
 require_root
 touch "${LOG_FILE}"
@@ -221,7 +223,10 @@ cd "${APP_ROOT}"
 NPM_CONFIG_CACHE="${CACHE_ROOT}/npm" npm ci --no-audit --no-fund
 NPM_CONFIG_CACHE="${CACHE_ROOT}/npm" npm run typecheck
 NPM_CONFIG_CACHE="${CACHE_ROOT}/npm" npm run build
-NPM_CONFIG_CACHE="${CACHE_ROOT}/npm" npm prune --omit=dev --no-audit --no-fund
+# Keep the complete workspace tree. npm prune --omit=dev can remove hoisted
+# runtime packages from a workspace root, leaving the production API unable to
+# import Fastify on a clean server.
+node --input-type=module -e "import('fastify')" >/dev/null
 apply_application_permissions
 
 log "Applying database migrations"
@@ -489,6 +494,7 @@ apply_application_permissions
 nginx -t
 systemctl daemon-reload
 systemctl enable nbvoice-api
+systemctl restart nginx
 # The new API generates current PBX files from PostgreSQL during startup and
 # invokes the strict apply helper. Never validate stale staging from an older
 # release before the generator has had a chance to replace it.
@@ -517,7 +523,7 @@ fi
 if ! asterisk -rx "core show function UUID" >/dev/null 2>&1; then
   fail "Asterisk UUID dialplan function did not load."
 fi
-if ! asterisk -rx "module show like cdr_pgsql.so" | grep -Eq '^[[:space:]]*cdr_pgsql\.so[[:space:]].*[[:space:]]Running([[:space:]]|$)'; then
+if ! wait_for_asterisk_module cdr_pgsql.so 15; then
   fail "Asterisk PostgreSQL CDR backend did not load."
 fi
 systemctl restart nbvoice-api nginx

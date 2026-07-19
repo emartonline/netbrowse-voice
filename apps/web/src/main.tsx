@@ -11721,7 +11721,7 @@ function AgentWorkspace({
             }
           />
           {registrationLabel}
-          <small>Hackathon build · 0.32.3</small>
+          <small>Hackathon build · 0.32.4</small>
         </footer>
       </aside>
       <main className="agent-workspace-main">
@@ -13408,7 +13408,7 @@ function CustomerPortal({
         </nav>
         <footer>
           <i className="online" />
-          Account active<small>{data.branding?.supportEmail || `${data.branding?.brandName ?? "Netbrowse Voice"} · 0.32.3`}</small>
+          Account active<small>{data.branding?.supportEmail || `${data.branding?.brandName ?? "Netbrowse Voice"} · 0.32.4`}</small>
         </footer>
       </aside>
       <main className="customer-portal-main">
@@ -13898,7 +13898,7 @@ function Dashboard({
           <div className="core-status">
             <span /> Core online
           </div>
-          <small>Hackathon build · 0.32.3</small>
+          <small>Hackathon build · 0.32.4</small>
         </div>
       </aside>
 
