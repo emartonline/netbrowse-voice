@@ -9,7 +9,18 @@ walkthrough, architecture overview and judging notes in
 [HACKATHON.md](HACKATHON.md).
 
 For a verified Ubuntu installation from a GitHub release asset, see
-[INSTALL.md](INSTALL.md).
+[INSTALL.md](INSTALL.md).   Simply copy and paste the following into your Ubuntu 26 for a quick install then register as an admin to login
+cd ~
+sudo apt-get update
+sudo apt-get install -y wget
+
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.6/netbrowse-voice-0.32.6.tar.gz
+wget https://github.com/emartonline/netbrowse-voice/releases/download/v0.32.6/netbrowse-voice-0.32.6.tar.gz.sha256
+
+sha256sum -c netbrowse-voice-0.32.6.tar.gz.sha256
+tar -xzf netbrowse-voice-0.32.6.tar.gz
+cd ~/netbrowse-voice-0.32.6
+sudo bash installer/install.sh
 
 Maintainers can create a clean public archive and matching checksum with
 [scripts/create-release-archive.sh](scripts/create-release-archive.sh). The
